@@ -18,6 +18,4 @@ pre_proc <- function(direcs) {
 }
 
 
-# flist <- c("D:\\Research\\test folder\\c3_(HG-U133_Plus_2).CEL","D:\\Research\\test folder\\c2_(HG-U133_Plus_2).CEL")
-# cool <- pre_proc(flist)
-# print(cool[1:5,])
+
