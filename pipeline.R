@@ -1,9 +1,12 @@
-source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
 
-# A list of files is collected for analysis from GUI (user selected)
-flist <- c("D:\\Research\\test folder\\c3_(HG-U133_Plus_2).CEL","D:\\Research\\test folder\\c2_(HG-U133_Plus_2).CEL")
-samples_matrix <- pre_proc(flist)
+pipeline <- function(files) {
+  source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
+  samples_matrix <- pre_proc(files)
+  
+  # Computes enrichment
+  source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
+  results <- CalcEnrich(samples_matrix)
+  return(results[1])
+}
 
-# Compute enrichment
-source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
-CalcEnrich(samples_matrix)
+pipeline("C:\\Users\\jonat\\Documents\\Research\\app test folder\\c2_(HG-U133_Plus_2).CEL")
