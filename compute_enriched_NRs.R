@@ -69,74 +69,86 @@ GetNumAboveThreshold <- function(zscores) {
 
 # This is the main function
 CalcEnrich <- function(testSamples){
+  
+  # keeps track of runtime for progress bar
   runtimes <- c()
   num_completed <- 0
   
-  # creates empty dataframe to store enrichment results (just p-values)
-  findb <- data.frame(matrix(ncol = length(NRs), nrow = ncol(testSamples)))
-  row.names(findb) <- colnames(testSamples)
-  colnames(findb) <- NRs
+  # averages replicates if there are multiple
+  test_sample <- data.frame(Mean=rowMeans(testSamples,na.rm=TRUE))
   
-  # iterates through each test sample and nuclear receptor
-  finSmpl <- list() #will hold z-scores for target genes of each NR for each sample
-  for (p in 1:ncol(testSamples)) { #for each sample...
-    finNR <- list() #will hold z-scores for target genes of each NR
-    test_sample <- testSamples[,p,drop=F] #get epression values for all probes for the current sample
+  # compute zscores for all probes (test sample versus serum-starved prior distributions)
+  zscores <- (test_sample-av)/std
+  
+  # creates df to store enrichment p-values
+  finPvals <- data.frame(matrix(ncol = length(NRs), nrow = 1))
+  colnames(finPvals) <- NRs
+  
+  finNR <- list() # holds z-scores for target genes of each NR
+  
+  for (d in 1:length(NRs)) { # for each nuclear receptor...
     
-    # compute zscores for all probes (test sample versus serum-starved prior)
-    zscores <- (test_sample-av)/std #WILL WANT TO RETURN THESE FOR USER
-    
-    for (d in 1:length(NRs)) { # for each nuclear receptor...
-      
-      # gets a list of target probes for the specified NR
-      if (NRs[d] %in% names(allTargets)) {
-        target_probes <- allTargets[[NRs[d]]]
-      } else {
-        next # if NR had less than 15 target genes go to next NR
-      }
-      
-      start_time <- Sys.time() # starts timer
-      
-      # select just the probes that are targets of the current NR being evaluated
-      test_sample_nr <- zscores[target_probes,,drop=F]
-      
-      # select all other probes that are not listed as targets of the NR
-      test_sample_rest <- zscores[!row.names(zscores)%in%target_probes,,drop=F]
-      
-      # gets differentially expressed genes from probe z scores
-      nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
-      restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
-      
-      # figure out how many target and non-targets are dysregulated
-      nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)
-      restAboveThresh <- GetNumAboveThreshold(restGeneLevelZ)
-      
-      # design contingency table
-      aboveThresh <- c(nrAboveThresh,restAboveThresh)
-      belowThresh <- c(length(nrGeneLevelZ)-nrAboveThresh,length(restGeneLevelZ)-restAboveThresh)
-      cTable <- cbind(aboveThresh,belowThresh)
-      
-      # computes results
-      result <- fisher.test(cTable,alternative = "greater")
-      print(NRs[d])
-      print(result[["p.value"]])
-      finNR[[NRs[d]]] <- nrGeneLevelZ
-      findb[colnames(testSamples)[p],NRs[d]] <- result[["p.value"]]
-      
-      end_time <- Sys.time()
-      runtime <- end_time - start_time
-      runtimes <- c(runtimes,runtime)
-      num_completed <- num_completed + 1
-      time_left <- mean(runtimes) * ((ncol(testSamples) * 15) - num_completed) / 60
-      minutes_left <- floor(time_left)
-      seconds_left <- round((time_left - minutes_left) * 60)
-      
-      incProgress(1/(ncol(testSamples)*15), 
-                  detail = paste("                ", minutes_left, " minutes ",seconds_left," seconds remaining"))
+    # gets a list of target probes for the specified NR
+    if (NRs[d] %in% names(allTargets)) {
+      target_probes <- allTargets[[NRs[d]]]
+    } else {
+      next # if NR had less than 15 target genes go to next NR
     }
-    finSmpl[[colnames(testSamples)[p]]] <- finNR
+    
+    start_time <- Sys.time() # starts timer
+    
+    # select just the probes that are targets of the current NR being evaluated
+    test_sample_nr <- zscores[target_probes,,drop=F]
+    
+    # select all other probes that are not listed as targets of the NR
+    test_sample_rest <- zscores[!row.names(zscores)%in%target_probes,,drop=F]
+    
+    # gets differentially expressed genes from probe z scores
+    nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
+    restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
+    
+    # figure out how many target and non-targets are dysregulated
+    nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)
+    restAboveThresh <- GetNumAboveThreshold(restGeneLevelZ)
+    
+    # design contingency table
+    aboveThresh <- c(nrAboveThresh,restAboveThresh)
+    belowThresh <- c(length(nrGeneLevelZ)-nrAboveThresh,length(restGeneLevelZ)-restAboveThresh)
+    cTable <- cbind(aboveThresh,belowThresh)
+    
+    # computes results
+    result <- fisher.test(cTable,alternative = "greater")
+    print(NRs[d])
+    print(result[["p.value"]])
+    finNR[[NRs[d]]] <- nrGeneLevelZ
+    finPvals[1,NRs[d]] <- result[["p.value"]]
+
+    end_time <- Sys.time()
+    runtime <- end_time - start_time
+    runtimes <- c(runtimes,runtime)
+    num_completed <- num_completed + 1
+    time_left <- mean(runtimes) * (15 - num_completed) / 60
+    minutes_left <- floor(time_left)
+    seconds_left <- round((time_left - minutes_left) * 60)
+    
+    incProgress(1/15,
+                detail = paste(minutes_left, " minutes ",seconds_left," seconds remaining"))
+    
   }
-  return(list(finSmpl,findb))
+  
+  # removes NA values
+  finPvals <- finPvals[,!apply(is.na(finPvals), 2, any)]
+  
+  # appends adjusted p-values
+  padj <- p.adjust(finPvals[1,],method = "fdr")
+  finPvals <- rbind(finPvals,padj)
+  row.names(finPvals) <- c("raw p-value","adj. p-value")
+  
+  # transposes and sorts dataframe
+  finPvals <- t(finPvals) 
+  finPvals <- finPvals[order(finPvals[,2]),]
+
+  return(list(finNR,finPvals))
 }
 
 
