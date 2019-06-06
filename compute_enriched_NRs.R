@@ -1,6 +1,7 @@
 library(annotate)
 library(jsonlite)
 library("hgu133plus2.db")
+library(ggplot2)
 
 # gets gene symbol annotations for all probes
 x <- hgu133plus2SYMBOL
@@ -33,6 +34,7 @@ NRs <- c("ESR1", "AR", "NR3C1", "NR3C2", "PGR",
 # This function converts z scores from probe level -> gene level
 DiffProbes2Genes <- function(probeZ) {
   zForGenes <- list()
+  mappings <- list()
   for (i in 1:nrow(probeZ)) {
     ID <- rownames(probeZ)[i] 
     if (ID %in% mapped_probes) { #if the probe maps to a gene symbol, continue
@@ -40,19 +42,23 @@ DiffProbes2Genes <- function(probeZ) {
       score <- probeZ[i,1]
       if (sym %in% names(zForGenes)) {
         zForGenes[[sym]] <- c(zForGenes[[sym]],score)
+        mappings[[sym]] <- c(mappings[[sym]],ID)
       } else {
         zForGenes[[sym]] <- c(score)
+        mappings[[sym]] <- c(ID)
       }
     }
   }
   
   newz <- list()
+  newz_mappings <- list()
   for (i in 1:length(zForGenes)) {
     ndxMax <- which.max(abs(zForGenes[[i]]))
     newz[[names(zForGenes)[i]]] <- zForGenes[[i]][ndxMax] #not that this is not abs value
+    newz_mappings[[names(mappings)[i]]] <- mappings[[i]][ndxMax]
   }
 
-  return(newz)
+  return(list(newz,newz_mappings))
 }
 
 # This function counts number of genes that are above the z-score threshold
@@ -66,6 +72,47 @@ GetNumAboveThreshold <- function(zscores) {
   }
   return(count)
 }
+
+MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
+  # preps serum-starved data for plotting
+  distrib <- data[unlist(mappings),]
+  genelst <- rep(glist[rownames(distrib)], each = ncol(distrib))
+  distrib <- c(t(distrib)) # linearizes data
+  distrib <- cbind(distrib,genelst)
+  distrib <- data.frame(distrib)
+  colnames(distrib) <- c("expr","gene")
+  
+  # preps user input data and results for plotting
+  inData <- testData[unlist(mappings),,drop=FALSE]
+  genelst <- glist[rownames(inData)]
+  inData <- cbind(inData,unlist(genelst))
+  colnames(inData) <- c("expr","gene")
+  inData <- cbind(inData,unlist(gene_z[as.character(inData$gene)])) #problem here
+  colnames(inData)[3] <- "zsc"
+  
+  # # plots
+  # p <- ggplot(data = distrib, aes(x=as.factor(gene), y=expr)) +
+  #   geom_boxplot(width=.3) +
+  #   geom_text(data = inData, aes(x=as.factor(gene), y=40, label=zsc), vjust=0) +
+  #   coord_flip() +
+  #   geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
+  #   labs(title=paste(NR, " Target Expression", sep=""), x="Target Gene", y="fRMA Expression") +
+    # theme(plot.title = element_text(hjust = 0.5)) +
+    # theme(axis.line = element_line(colour = "black"),
+    #       panel.grid.major = element_blank(),
+    #       panel.grid.minor = element_blank(),
+    #       panel.border = element_blank(),
+    #       panel.background = element_blank())
+  
+  distrib <- as.data.frame(lapply(distrib, unlist))
+  p <- ggplot(data = distrib, aes(x=factor(gene), y=expr)) +
+    geom_boxplot(width=.5) +
+    coord_flip()
+  
+  return(p)
+  # need to sort by decreasing Z score and make size very tall with a scroll page in Shiny
+}
+
 
 # This is the main function
 CalcEnrich <- function(testSamples){
@@ -105,7 +152,17 @@ CalcEnrich <- function(testSamples){
     
     # gets differentially expressed genes from probe z scores
     nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
+    nrGeneLevelZ_mappings <- nrGeneLevelZ[[2]]
+    nrGeneLevelZ <- nrGeneLevelZ[[1]]
+    
+    # generate boxplots of the data
+    outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
+    
+    ###### move this back up once debug MakeBoxPlots
     restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
+    restGeneLevelZ_mappings <- restGeneLevelZ[[2]]
+    restGeneLevelZ <- restGeneLevelZ[[1]]
+    
     
     # figure out how many target and non-targets are dysregulated
     nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)
@@ -123,6 +180,7 @@ CalcEnrich <- function(testSamples){
     finNR[[NRs[d]]] <- nrGeneLevelZ
     finPvals[1,NRs[d]] <- result[["p.value"]]
 
+    # calculates remaining compute time
     end_time <- Sys.time()
     runtime <- end_time - start_time
     runtimes <- c(runtimes,runtime)
