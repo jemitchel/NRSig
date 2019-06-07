@@ -75,16 +75,33 @@ server <- function(input, output, session) {
     inputs
   }
 
-  # generates the results dataframe with column of buttons
-  output$resTable <- DT::renderDataTable({data.frame(res()[[2]],
-    Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
-  )},server = FALSE, escape = FALSE, selection = 'none')
+  # # generates the results dataframe with column of buttons
+  # output$resTable <- DT::renderDataTable({data.frame(res()[[2]],
+  #   Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
+  # )},server = FALSE, escape = FALSE, selection = 'none')
+  
+  # produces the results dataframe with column of buttons
+  tmptbl <- reactive({data.frame(res()[[2]],
+                      Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
+  )})
+  
+  # renders the results dataframe with column of buttons
+  output$resTable <- DT::renderDataTable({
+    tmptbl()
+  },server = FALSE, escape = FALSE, selection = 'none')
 
   # chooses the correct plot depending which button is pushed
   chosenPlt <- eventReactive(input$select_button, {
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-    return(res()[[1]][[selectedRow]])
+    selectedNR <- rownames(tmptbl())[selectedRow]
+    return(res()[[1]][[selectedNR]])
   })
+  
+  # # chooses the correct plot depending which button is pushed
+  # chosenPlt <- eventReactive(input$select_button, {
+  #   selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+  #   return(res()[[1]][[selectedRow]])
+  # })
 
   # shows the selected table
   observe({
