@@ -94,15 +94,19 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   colnames(inData)[3] <- "zsc"
   inData <- inData[match(names(ordered_z), inData$gene),]
   inData$gene <- factor(inData$gene, levels = inData$gene) # orders the factor for plot
+  inData$zsc <- round(inData$zsc,digits = 2)
    
   # makes the plot
   p <- ggplot(data = inData, aes(x=as.factor(gene), y=expr)) +
     geom_point(color='red', size=3) +
     geom_text(data = inData, aes(x=as.factor(gene), y=20, label=zsc), vjust=0) +
+    # geom_text(aes(y=20), label="Z-Score", hjust=0.8) +
     geom_boxplot(data = distrib, aes(x=as.factor(gene), y=expr), width=.3) +
+    geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
     coord_flip() +
-    labs(title=paste(NR, " Target Expression", sep=""), x="Target Gene", y="fRMA Expression") +
-    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title=paste(NR, " Target Expression", sep=""), 
+         subtitle = "Z-Score", x="Target Gene", y="fRMA Expression") +
+    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .975)) +
     theme(axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -176,7 +180,7 @@ CalcEnrich <- function(testSamples){
     result <- fisher.test(cTable,alternative = "greater")
     print(NRs[d])
     print(result[["p.value"]])
-    finNR[[NRs[d]]] <- outPlot
+    finNR[[NRs[d]]] <- list(outPlot,length(nrGeneLevelZ))
     finPvals[1,NRs[d]] <- result[["p.value"]]
 
     # calculates remaining compute time

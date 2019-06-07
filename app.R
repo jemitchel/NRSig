@@ -14,10 +14,23 @@ ui <- fluidPage(
     ),
     mainPanel(
       DT::dataTableOutput("resTable"),
-      DT::dataTableOutput("bplots")
-      # NEED TO SOMEHOW MAKE IT SCROLL FOR THE BIG FIGURES
+      plotOutput("bplots")
     )
   )
+  
+  # fluidRow(
+  #   column(3,
+  #          fileInput(inputId = "files",
+  #                    label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
+  #                    multiple = TRUE),
+  #          verbatimTextOutput("fileName"),
+  #          actionButton(inputId = "compute",
+  #                       label = "Compute")),
+  #   column(3,
+  #          DT::dataTableOutput("resTable")),
+  #   column(6,
+  #          plotOutput("bplots"))
+  # )
 )
 
 server <- function(input, output, session) {
@@ -52,8 +65,6 @@ server <- function(input, output, session) {
     })
 
   })
-  
-  # output$table <- renderDT(res()) #dont really need this
 
   # makes inputs for buttons on output results table
   shinyInput <- function(FUN, len, id, ...) {
@@ -63,27 +74,25 @@ server <- function(input, output, session) {
     }
     inputs
   }
-  
-  # generates the dataframe
+
+  # generates the results dataframe with column of buttons
   output$resTable <- DT::renderDataTable({data.frame(res()[[2]],
     Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
   )},server = FALSE, escape = FALSE, selection = 'none')
 
-  # output$resTable <- DT::renderDataTable(
-  #   df$data, server = FALSE, escape = FALSE, selection = 'none'
-  # )
+  # chooses the correct plot depending which button is pushed
+  chosenPlt <- eventReactive(input$select_button, {
+    selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+    return(res()[[1]][[selectedRow]])
+  })
 
-  # # chooses the correct plot depending which button is pushed
-  # chosenPlt <- eventReactive(input$select_button, {
-  #   selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-  #   selectedNR <- df$data[selectedRow,1]
-  #   return(res()[[1]][[selectedNR]])
-  # })
-
-  # # shows the selected table
-  # output$bplots <- DT::renderDataTable({
-  #   chosenPlt()
-  # })
+  # shows the selected table
+  observe({
+    output$bplots <- renderPlot({
+      chosenPlt()[[1]]
+    },height = (5000/74)*chosenPlt()[[2]],width = 500)
+  })
+  
 
 }
 
@@ -117,20 +126,33 @@ shinyApp(ui, server)
 #       inputs
 #     }
 # 
-#     df <- reactiveValues(data = data.frame(
+#     # generates the dataframe
+#     output$data <- DT::renderDataTable({data.frame(Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
+#       Actions = shinyInput(actionButton, 5, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
+#     )},server = FALSE, escape = FALSE, selection = 'none')
 # 
-#       Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
-#       Motivation = c(62, 73, 3, 99, 52),
-#       Actions = shinyInput(actionButton, 5, 'button_', label = "Fire", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
-#       stringsAsFactors = FALSE,
-#       row.names = 1:5
-#     ))
-# 
-# 
-#     output$data <- DT::renderDataTable(
-#       df$data, server = FALSE, escape = FALSE, selection = 'none'
-#     )
-# 
+#     # # generates the dataframe
+#     # tmp <- reactive({data.frame(Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
+#     #                                                Actions = shinyInput(actionButton, 5, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
+#     # )},server = FALSE, escape = FALSE, selection = 'none')
+#     # 
+#     # output$data <- DT::renderDataTable({})
+#     #   
+#     
+#     # df <- reactiveValues(data = data.frame(
+#     #
+#     #   Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
+#     #   Motivation = c(62, 73, 3, 99, 52),
+#     #   Actions = shinyInput(actionButton, 5, 'button_', label = "Fire", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
+#     #   stringsAsFactors = FALSE,
+#     #   row.names = 1:5
+#     # ))
+#     #
+#     #
+#     # output$data <- DT::renderDataTable(
+#     #   df$data, server = FALSE, escape = FALSE, selection = 'none'
+#     # )
+#     #
 #     oot <- eventReactive(input$select_button, {
 #       selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
 #       return(clst[[selectedRow]])
