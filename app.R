@@ -13,8 +13,9 @@ ui <- fluidPage(
                    label = "Compute")
     ),
     mainPanel(
-      DT::dataTableOutput("data"),
+      DT::dataTableOutput("resTable"),
       DT::dataTableOutput("bplots")
+      # NEED TO SOMEHOW MAKE IT SCROLL FOR THE BIG FIGURES
     )
   )
 )
@@ -51,6 +52,8 @@ server <- function(input, output, session) {
     })
 
   })
+  
+  # output$table <- renderDT(res()) #dont really need this
 
   # makes inputs for buttons on output results table
   shinyInput <- function(FUN, len, id, ...) {
@@ -60,28 +63,27 @@ server <- function(input, output, session) {
     }
     inputs
   }
-
+  
   # generates the dataframe
-  df <- reactiveValues(data = data.frame(
-    res()[[2]],
+  output$resTable <- DT::renderDataTable({data.frame(res()[[2]],
     Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
-  ))
+  )},server = FALSE, escape = FALSE, selection = 'none')
 
-  output$data <- DT::renderDataTable(
-    df$data, server = FALSE, escape = FALSE, selection = 'none'
-  )
+  # output$resTable <- DT::renderDataTable(
+  #   df$data, server = FALSE, escape = FALSE, selection = 'none'
+  # )
 
-  # chooses the correct plot depending which button is pushed
-  chosenPlt <- eventReactive(input$select_button, {
-    selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-    selectedNR <- df$data[selectedRow,1]
-    return(res()[[1]][[selectedNR]])
-  })
+  # # chooses the correct plot depending which button is pushed
+  # chosenPlt <- eventReactive(input$select_button, {
+  #   selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+  #   selectedNR <- df$data[selectedRow,1]
+  #   return(res()[[1]][[selectedNR]])
+  # })
 
-  # shows the selected table
-  output$bplots <- DT::renderDataTable({
-    chosenPlt()
-  })
+  # # shows the selected table
+  # output$bplots <- DT::renderDataTable({
+  #   chosenPlt()
+  # })
 
 }
 
