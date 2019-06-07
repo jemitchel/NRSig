@@ -81,6 +81,7 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   distrib <- cbind(distrib,genelst)
   distrib <- data.frame(distrib)
   colnames(distrib) <- c("expr","gene")
+  distrib <- as.data.frame(lapply(distrib, unlist))
   
   # preps user input data and results for plotting
   inData <- testData[unlist(mappings),,drop=FALSE]
@@ -90,24 +91,20 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   inData <- cbind(inData,unlist(gene_z[as.character(inData$gene)])) #problem here
   colnames(inData)[3] <- "zsc"
   
-  # # plots
-  # p <- ggplot(data = distrib, aes(x=as.factor(gene), y=expr)) +
-  #   geom_boxplot(width=.3) +
-  #   geom_text(data = inData, aes(x=as.factor(gene), y=40, label=zsc), vjust=0) +
-  #   coord_flip() +
-  #   geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
-  #   labs(title=paste(NR, " Target Expression", sep=""), x="Target Gene", y="fRMA Expression") +
-    # theme(plot.title = element_text(hjust = 0.5)) +
-    # theme(axis.line = element_line(colour = "black"),
-    #       panel.grid.major = element_blank(),
-    #       panel.grid.minor = element_blank(),
-    #       panel.border = element_blank(),
-    #       panel.background = element_blank())
+  # plots
+  p <- ggplot(data = distrib, aes(x=as.factor(gene), y=expr)) +
+    geom_boxplot(width=.3) +
+    geom_text(data = inData, aes(x=as.factor(gene), y=20, label=zsc), vjust=0) +
+    coord_flip() +
+    geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
+    labs(title=paste(NR, " Target Expression", sep=""), x="Target Gene", y="fRMA Expression") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
   
-  distrib <- as.data.frame(lapply(distrib, unlist))
-  p <- ggplot(data = distrib, aes(x=factor(gene), y=expr)) +
-    geom_boxplot(width=.5) +
-    coord_flip()
   
   return(p)
   # need to sort by decreasing Z score and make size very tall with a scroll page in Shiny
@@ -177,7 +174,7 @@ CalcEnrich <- function(testSamples){
     result <- fisher.test(cTable,alternative = "greater")
     print(NRs[d])
     print(result[["p.value"]])
-    finNR[[NRs[d]]] <- nrGeneLevelZ
+    finNR[[NRs[d]]] <- outPlot
     finPvals[1,NRs[d]] <- result[["p.value"]]
 
     # calculates remaining compute time
@@ -189,8 +186,8 @@ CalcEnrich <- function(testSamples){
     minutes_left <- floor(time_left)
     seconds_left <- round((time_left - minutes_left) * 60)
     
-    incProgress(1/15,
-                detail = paste(minutes_left, " minutes ",seconds_left," seconds remaining"))
+    # incProgress(1/15,
+    #             detail = paste(minutes_left, " minutes ",seconds_left," seconds remaining"))
     
   }
   
