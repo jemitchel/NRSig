@@ -10,11 +10,18 @@ ui <- fluidPage(
                 multiple = TRUE),
       verbatimTextOutput("fileName"),
       actionButton(inputId = "compute",
-                   label = "Compute")
+                   label = "Compute"),
+      # downloadButton("downloadfRMA",label = "Download fRMA Preprocessed Data"),
+      # downloadButton("downloadDiffex",label = "Download Differential Expression Data")
+      uiOutput("download1"),
+      uiOutput("download2"),
+      uiOutput("download3")
     ),
+
     mainPanel(
       DT::dataTableOutput("resTable"),
       plotOutput("bplots")
+      # downloadButton("downloadPlots",label = "Download Plot")
     )
   )
   
@@ -74,11 +81,6 @@ server <- function(input, output, session) {
     }
     inputs
   }
-
-  # # generates the results dataframe with column of buttons
-  # output$resTable <- DT::renderDataTable({data.frame(res()[[2]],
-  #   Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
-  # )},server = FALSE, escape = FALSE, selection = 'none')
   
   # produces the results dataframe with column of buttons
   tmptbl <- reactive({data.frame(res()[[2]],
@@ -96,12 +98,6 @@ server <- function(input, output, session) {
     selectedNR <- rownames(tmptbl())[selectedRow]
     return(res()[[1]][[selectedNR]])
   })
-  
-  # # chooses the correct plot depending which button is pushed
-  # chosenPlt <- eventReactive(input$select_button, {
-  #   selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-  #   return(res()[[1]][[selectedRow]])
-  # })
 
   # shows the selected table
   observe({
@@ -110,78 +106,51 @@ server <- function(input, output, session) {
     },height = (5000/74)*chosenPlt()[[2]],width = 500)
   })
   
-
+  
+  output$download1 <- renderUI({
+    if(!is.null(res())) {
+      downloadButton('downloadfRMA', label = "Download fRMA Preprocessed Data")
+    }
+  })
+  
+  output$download2 <- renderUI({
+    if(!is.null(res())) {
+      downloadButton('downloadDiffex', label = "Download Differential Expression Data")
+    }
+  })
+    
+  output$download3 <- renderUI({
+    if(!is.null(chosenPlt())) {
+      downloadButton('downloadPlot', label = "Download Plot")
+    }
+  })
+  
+  output$downloadfRMA <- downloadHandler(
+    filename = function() { paste('input_preprocessed', '.csv', sep='') },
+    content = function(file) {
+      write.csv("INSERT TABLE HERE", file) #need to make the table first
+    }
+  )
+  
+  output$downloadDiffex <- downloadHandler(
+    filename = function() { paste('diff_exprs', '.csv', sep='') },
+    content = function(file) {
+      write.csv("INSERT TABLE HERE", file) #need to make the table first
+    }
+  )
+  
+  output$downloadPlot <- downloadHandler(
+    filename = function() { paste(chosenPlt()[[1]]$labels$title, '.png', sep='') },
+    content = function(file) {
+      ggsave(file, plot = chosenPlt()[[1]], device = "png",
+             height = (60/74)*chosenPlt()[[2]], width = 5)
+    }
+  )
+  
 }
 
 shinyApp(ui, server)
 
-
-
-
-
-
-
-
-
-
-# library(shiny)
-# library(DT)
-# 
-# shinyApp(
-#   ui <- fluidPage(
-#     DT::dataTableOutput("data"),
-#     DT::dataTableOutput("tbl")
-#   ),
-# 
-#   server <- function(input, output) {
-# 
-#     shinyInput <- function(FUN, len, id, ...) {
-#       inputs <- character(len)
-#       for (i in seq_len(len)) {
-#         inputs[i] <- as.character(FUN(paste0(id, i), ...))
-#       }
-#       inputs
-#     }
-# 
-#     # generates the dataframe
-#     output$data <- DT::renderDataTable({data.frame(Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
-#       Actions = shinyInput(actionButton, 5, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
-#     )},server = FALSE, escape = FALSE, selection = 'none')
-# 
-#     # # generates the dataframe
-#     # tmp <- reactive({data.frame(Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
-#     #                                                Actions = shinyInput(actionButton, 5, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
-#     # )},server = FALSE, escape = FALSE, selection = 'none')
-#     # 
-#     # output$data <- DT::renderDataTable({})
-#     #   
-#     
-#     # df <- reactiveValues(data = data.frame(
-#     #
-#     #   Name = c('Dilbert', 'Alice', 'Wally', 'Ashok', 'Dogbert'),
-#     #   Motivation = c(62, 73, 3, 99, 52),
-#     #   Actions = shinyInput(actionButton, 5, 'button_', label = "Fire", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' ),
-#     #   stringsAsFactors = FALSE,
-#     #   row.names = 1:5
-#     # ))
-#     #
-#     #
-#     # output$data <- DT::renderDataTable(
-#     #   df$data, server = FALSE, escape = FALSE, selection = 'none'
-#     # )
-#     #
-#     oot <- eventReactive(input$select_button, {
-#       selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-#       return(clst[[selectedRow]])
-#     })
-# 
-# 
-#     output$tbl <- DT::renderDataTable({
-#       oot()
-#     })
-# 
-#   }
-# )
 
 
 

@@ -192,7 +192,7 @@ CalcEnrich <- function(testSamples){
     minutes_left <- floor(time_left)
     seconds_left <- round((time_left - minutes_left) * 60)
     
-    incProgress(1/15, 
+    incProgress(amount = 1/15,
                 detail = paste("       ",minutes_left, " minutes ",seconds_left," seconds remaining"))
     
   }
