@@ -10,11 +10,11 @@ glist <- as.list(x[mapped_probes]) #list of symbols with only probes that map to
 
 # opens the tf-target probe data source 
 allTargets <- fromJSON("C:/Users/jonat/Documents/R/NRSig-app/data/NR_target_probes.json", flatten=TRUE) #use this one for testing
-# allTargets <- fromJSON("NR_target_probes.json", flatten=TRUE) #use this one for real
+# allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
 
 # loads dataframe of serum starved MCF7 samples
 data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved.rds") #use this for testing
-# data <- readRDS(file = "data/serum-starved.rds") #use this one for real
+# data <- readRDS(file = "./data/serum-starved.rds") 
 
 # computes mean and standard deviation for serum starved data
 data_av_std <- data.frame(Mean=rowMeans(data,na.rm=TRUE),Std=apply(data,1,sd,na.rm=TRUE))
@@ -100,7 +100,6 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   p <- ggplot(data = inData, aes(x=as.factor(gene), y=expr)) +
     geom_point(color='red', size=3) +
     geom_text(data = inData, aes(x=as.factor(gene), y=20, label=zsc), vjust=0) +
-    # geom_text(aes(y=20), label="Z-Score", hjust=0.8) +
     geom_boxplot(data = distrib, aes(x=as.factor(gene), y=expr), width=.3) +
     geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
     coord_flip() +
@@ -157,15 +156,12 @@ CalcEnrich <- function(testSamples){
     nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
     nrGeneLevelZ_mappings <- nrGeneLevelZ[[2]]
     nrGeneLevelZ <- nrGeneLevelZ[[1]]
-    
-    # generate boxplots of the data
-    outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
-    
-    ###### move this back up once debug MakeBoxPlots
     restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
     restGeneLevelZ_mappings <- restGeneLevelZ[[2]]
     restGeneLevelZ <- restGeneLevelZ[[1]]
     
+    # generate boxplots of the data
+    outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
     
     # figure out how many target and non-targets are dysregulated
     nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)
@@ -208,10 +204,16 @@ CalcEnrich <- function(testSamples){
   # transposes and sorts dataframe
   finPvals <- t(finPvals) 
   finPvals <- finPvals[order(finPvals[,2]),]
-  finNR <- as.list(finNR[order(finPvals[,2])]) # orders the list of plots too
+  finNR <- as.list(finNR[order(finPvals[,2])]) # orders the list of plots
+  
+  # adds gene symbol annotations to differentially expressed probes list
+  syms <- as.character(glist[rownames(zscores)])
+  syms <- replace(syms, syms=="NULL", "")
+  zscores <- cbind(zscores,syms)
+  # NEED TO sort differentially expressed probes list
   
 
-  return(list(finNR,finPvals))
+  return(list(finNR,finPvals,zscores))
 }
 
 
