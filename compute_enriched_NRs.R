@@ -199,7 +199,7 @@ CalcEnrich <- function(testSamples){
   # appends adjusted p-values
   padj <- p.adjust(finPvals[1,],method = "fdr")
   finPvals <- rbind(finPvals,padj)
-  row.names(finPvals) <- c("raw p-value","adj. p-value")
+  row.names(finPvals) <- c("raw p-value","adj p-value")
   
   # transposes and sorts dataframe
   finPvals <- t(finPvals) 
@@ -210,10 +210,17 @@ CalcEnrich <- function(testSamples){
   syms <- as.character(glist[rownames(zscores)])
   syms <- replace(syms, syms=="NULL", "")
   zscores <- cbind(zscores,syms)
-  # NEED TO sort differentially expressed probes list
+  # sorts differentially expressed probes list
+  zscores <- zscores[order(abs(unlist(zscores[,1])), decreasing=TRUE),]
+  
+  # makes probe ID to first column and names columns (for both downloadable tablesS)
+  zscores <- cbind(Row.Names = rownames(zscores), zscores)
+  colnames(zscores) <- c("Probeset ID","Z-Score","Gene Symbol")
+  testSamples <- cbind(Row.Names = rownames(testSamples), testSamples)
+  colnames(testSamples)[1] <- c("Probeset ID")
   
 
-  return(list(finNR,finPvals,zscores))
+  return(list(finNR,finPvals,zscores,testSamples))
 }
 
 

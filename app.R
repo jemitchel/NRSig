@@ -11,8 +11,6 @@ ui <- fluidPage(
       verbatimTextOutput("fileName"),
       actionButton(inputId = "compute",
                    label = "Compute"),
-      # downloadButton("downloadfRMA",label = "Download fRMA Preprocessed Data"),
-      # downloadButton("downloadDiffex",label = "Download Differential Expression Data")
       uiOutput("download1"),
       uiOutput("download2"),
       uiOutput("download3")
@@ -61,7 +59,7 @@ server <- function(input, output, session) {
     progress$set(message = 'Preprocessing',
                  detail = 'This may take a few minutes...')
     source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
-    samples_matrix <- pre_proc(input$files$datapath)
+    samples_matrix <- pre_proc(input$files$datapath,input$files$name)
     progress$set(message = 'Preprocessing Completed', detail = "")
     on.exit(progress$close())
 
@@ -109,33 +107,33 @@ server <- function(input, output, session) {
   
   output$download1 <- renderUI({
     if(!is.null(res())) {
-      downloadButton('downloadfRMA', label = "Download fRMA Preprocessed Data")
+      downloadButton('downloadfRMA', label = "fRMA Preprocessed Input")
     }
   })
-  
+
   output$download2 <- renderUI({
     if(!is.null(res())) {
-      downloadButton('downloadDiffex', label = "Download Differential Expression Data")
+      downloadButton('downloadDiffex', label = "Differential Expression Results")
     }
   })
     
   output$download3 <- renderUI({
     if(!is.null(chosenPlt())) {
-      downloadButton('downloadPlot', label = "Download Plot")
+      downloadButton('downloadPlot', label = "Boxplot Figure")
     }
   })
   
   output$downloadfRMA <- downloadHandler(
     filename = function() { paste('input_preprocessed', '.csv', sep='') },
     content = function(file) {
-      write.csv("INSERT TABLE HERE", file) #need to make the table first
+      write.csv(res()[[4]], file, row.names = FALSE)
     }
   )
-  
+
   output$downloadDiffex <- downloadHandler(
     filename = function() { paste('diff_exprs', '.csv', sep='') },
     content = function(file) {
-      write.csv("INSERT TABLE HERE", file) #need to make the table first
+      write.csv(res()[[3]], file, row.names = FALSE)
     }
   )
   
@@ -143,7 +141,7 @@ server <- function(input, output, session) {
     filename = function() { paste(chosenPlt()[[1]]$labels$title, '.png', sep='') },
     content = function(file) {
       ggsave(file, plot = chosenPlt()[[1]], device = "png",
-             height = (60/74)*chosenPlt()[[2]], width = 5)
+             height = (60/74)*chosenPlt()[[2]], width = 5,limitsize = FALSE)
     }
   )
   
