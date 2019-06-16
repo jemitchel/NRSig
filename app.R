@@ -88,7 +88,7 @@ server <- function(input, output, session) {
   # renders the results dataframe with column of buttons
   output$resTable <- DT::renderDataTable({
     tmptbl()
-  },server = FALSE, escape = FALSE, selection = 'none')
+  },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE)
 
   # chooses the correct plot depending which button is pushed
   chosenPlt <- eventReactive(input$select_button, {

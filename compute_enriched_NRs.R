@@ -199,12 +199,14 @@ CalcEnrich <- function(testSamples){
   # appends adjusted p-values
   padj <- p.adjust(finPvals[1,],method = "fdr")
   finPvals <- rbind(finPvals,padj)
-  row.names(finPvals) <- c("raw p-value","adj p-value")
-  
+
   # transposes and sorts dataframe
   finPvals <- t(finPvals) 
   finPvals <- finPvals[order(finPvals[,2]),]
   finNR <- as.list(finNR[order(finPvals[,2])]) # orders the list of plots
+  # makes rownames into first column
+  finPvals <- cbind(Row.Names = rownames(finPvals), finPvals)
+  colnames(finPvals) <- c("NR","raw p-value","adj p-value")
   
   # adds gene symbol annotations to differentially expressed probes list
   syms <- as.character(glist[rownames(zscores)])
