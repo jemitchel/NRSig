@@ -3,63 +3,97 @@ library(DT)
 
 ui <- fluidPage(
 
-  sidebarLayout(
-    sidebarPanel(
-      fileInput(inputId = "files",
-                label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
-                multiple = TRUE),
-      verbatimTextOutput("fileName"),
-      actionButton(inputId = "compute",
-                   label = "Compute"),
-      uiOutput("download1"),
-      uiOutput("download2"),
-      uiOutput("download3")
-    ),
-
-    mainPanel(
-      DT::dataTableOutput("resTable"),
-      plotOutput("bplots")
-      # downloadButton("downloadPlots",label = "Download Plot")
-    )
-  )
-  
-  # fluidRow(
-  #   column(3,
-  #          fileInput(inputId = "files",
-  #                    label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
-  #                    multiple = TRUE),
-  #          verbatimTextOutput("fileName"),
-  #          actionButton(inputId = "compute",
-  #                       label = "Compute")),
-  #   column(3,
-  #          DT::dataTableOutput("resTable")),
-  #   column(6,
-  #          plotOutput("bplots"))
+  # sidebarLayout(
+  #   sidebarPanel(
+  #     fileInput(inputId = "files",
+  #               label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
+  #               multiple = TRUE),
+  #     verbatimTextOutput("fileName"),
+  #     actionButton(inputId = "compute",
+  #                  label = "Compute"),
+  #     uiOutput("download1"),
+  #     uiOutput("download2"),
+  #     uiOutput("download3")
+  #   ),
+  # 
+  #   mainPanel(
+  #     DT::dataTableOutput("resTable"),
+  #     plotOutput("bplots")
+  #   )
   # )
+  
+  
+  fluidRow(
+    column(width = 4,
+           fileInput(inputId = "files",
+                     label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
+                     multiple = TRUE),
+           verbatimTextOutput("fileName"),
+           actionButton(inputId = "compute",
+                        label = "Compute"),
+           actionButton(inputId = "select",
+                        label = "Select Uploaded Files"),
+           actionButton(inputId = "example",
+                        label = "Use Example Input"),
+           uiOutput("download1"),
+           uiOutput("download2"),
+           uiOutput("download3")),
+    column(width = 4,
+           DT::dataTableOutput("resTable")),
+    column(width = 4,
+           plotOutput("bplots"))
+  )
 )
 
 server <- function(input, output, session) {
+  # increases allowable size of file uploads
   options(shiny.maxRequestSize=30*1024^2)
-
-  output$fileName <- renderText({
-    tmp <- "Uploaded Files:\n"
-    if (!is.null(input$files$datapath)) {
-      for (i in basename(input$files$name)) {
+  
+  rv <- reactiveValues() # container for selected files
+  
+  observeEvent(input$select, {
+    rv$data <- input$files$datapath
+    rv$name <- input$files$name
+  })
+  
+  observeEvent(input$example, {
+    rv$data <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
+    rv$name <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
+  })
+  
+  output$fileName <- renderText({ 
+    tmp <- NULL
+    if (!is.null(rv$name)) {
+      tmp <- "Selected Files:\n"
+      for (i in basename(rv$name)) {
         tmp <- paste(tmp,i,"\n")
       }
-      return(tmp)
-    } else {
-      return(NULL)
-    }
+    } 
+    return(tmp)
   })
-
-
+  
+  # errorMessage <- reactive({ 
+  #   if (res() == "no file error") {
+  #     return("No input files uploaded")
+  #   } else if (res() == "wrong file error") {
+  #     return("Wrong type of file uploaded. Need .CEL file.")
+  #   } else if (res() == "wrong platform error") {
+  #     return(".CEL file is for wrong platform. Only upload files for HG-U133 Plus 2.0")
+  #   } else if (is.null(res())) {
+  #     return(NULL)
+  #   }
+  # })
+  
   res <- eventReactive(input$compute, {
+    # if (is.null(input$files) && is.null(example())) {
+    #   cool <- 9
+    #   return("no file error")
+    # }
     progress <- Progress$new(session)
     progress$set(message = 'Preprocessing',
                  detail = 'This may take a few minutes...')
     source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
-    samples_matrix <- pre_proc(input$files$datapath,input$files$name)
+    samples_matrix <- pre_proc(rv$data,rv$name)
     progress$set(message = 'Preprocessing Completed', detail = "")
     on.exit(progress$close())
 
@@ -81,9 +115,11 @@ server <- function(input, output, session) {
   }
   
   # produces the results dataframe with column of buttons
-  tmptbl <- reactive({data.frame(res()[[2]],
+  tmptbl <- reactive({
+    data.frame(res()[[2]],
                       Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
-  )})
+               )
+  })
   
   # renders the results dataframe with column of buttons
   output$resTable <- DT::renderDataTable({
