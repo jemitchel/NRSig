@@ -1,49 +1,34 @@
 library(shiny)
 library(DT)
+library(shinydashboard)
 
-ui <- fluidPage(
-
-  # sidebarLayout(
-  #   sidebarPanel(
-  #     fileInput(inputId = "files",
-  #               label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
-  #               multiple = TRUE),
-  #     verbatimTextOutput("fileName"),
-  #     actionButton(inputId = "compute",
-  #                  label = "Compute"),
-  #     uiOutput("download1"),
-  #     uiOutput("download2"),
-  #     uiOutput("download3")
-  #   ),
-  # 
-  #   mainPanel(
-  #     DT::dataTableOutput("resTable"),
-  #     plotOutput("bplots")
-  #   )
-  # )
-  
-  
-  fluidRow(
-    column(width = 4,
-           fileInput(inputId = "files",
-                     label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
-                     multiple = TRUE),
-           verbatimTextOutput("fileName"),
-           actionButton(inputId = "compute",
-                        label = "Compute"),
-           actionButton(inputId = "select",
-                        label = "Select Uploaded Files"),
-           actionButton(inputId = "example",
-                        label = "Use Example Input"),
-           uiOutput("download1"),
-           uiOutput("download2"),
-           uiOutput("download3")),
-    column(width = 4,
-           DT::dataTableOutput("resTable")),
-    column(width = 4,
-           plotOutput("bplots"))
+ui <- dashboardPage(
+  dashboardHeader(),
+  dashboardSidebar(
+    fileInput(inputId = "files",
+              label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
+              multiple = TRUE),
+    verbatimTextOutput("fileName"),
+    actionButton(inputId = "compute",
+                 label = "Compute"),
+    actionButton(inputId = "select",
+                 label = "Select Uploaded Files"),
+    actionButton(inputId = "example",
+                 label = "Use Example Input"),
+    uiOutput("download1"),
+    uiOutput("download2"),
+    uiOutput("download3")
+  ),
+  dashboardBody(
+    fluidRow(
+      column(width = 6,
+             DT::dataTableOutput("resTable")),
+      column(width = 6,
+             plotOutput("bplots"))
+    )
   )
 )
+
 
 server <- function(input, output, session) {
   # increases allowable size of file uploads
