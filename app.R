@@ -28,6 +28,32 @@ ui <- dashboardPage(
   )
 )
 
+# ui <- fluidPage(
+#   
+#   sidebarLayout(
+#     sidebarPanel(
+#       fileInput(inputId = "files",
+#                 label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
+#                 multiple = TRUE),
+#       actionButton(inputId = "example",
+#                    label = "Use Example Input"),
+#       verbatimTextOutput("fileName"),
+#       actionButton(inputId = "compute",
+#                    label = "Compute",
+#                    style="color: #fff; background-color: #008000; border-color: #008000"),
+#       uiOutput("download1"),
+#       uiOutput("download2"),
+#       uiOutput("download3")
+#     ),
+#     mainPanel(
+#       column(width = 6,
+#              DT::dataTableOutput("resTable")),
+#       column(width = 6,
+#              plotOutput("bplots"))
+#     )
+#   )
+# )
+
 
 server <- function(input, output, session) {
   # increases allowable size of file uploads
@@ -68,11 +94,30 @@ server <- function(input, output, session) {
   #   }
   # })
   
+  FileTypeError <- function(flist) {
+    if (is.null(flist)) {
+      return("")
+    }
+    for (i in 1:length(flist)) {
+      len <- nchar(flist[[i]])
+      last4 <- substr(flist[[i]],len-3,len)
+      if (!identical(last4,".CEL")) {
+        return("Upload includes file(s) not ending in .CEL ")
+      }
+      cdfName <- whatcdf(flist[[i]])
+      if (!identical(cdfName,"HG-U133_Plus_2")) {
+        return("Input file(s) are for wrong platform. Use CEL files for HG-U133_Plus_2 only.")
+      }
+    }
+  }
+  
   res <- eventReactive(input$compute, {
-    # if (is.null(input$files) && is.null(example())) {
-    #   cool <- 9
-    #   return("no file error")
-    # }
+    print(rv$data)
+    shiny::validate(
+      need(!is.null(rv$name), message = "Please upload files to process"),
+      FileTypeError(rv$name)
+    )
+    cool <- 4
     progress <- Progress$new(session)
     progress$set(message = 'Preprocessing',
                  detail = 'This may take a few minutes...')
