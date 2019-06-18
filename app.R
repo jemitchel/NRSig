@@ -8,13 +8,12 @@ ui <- dashboardPage(
     fileInput(inputId = "files",
               label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
               multiple = TRUE),
-    verbatimTextOutput("fileName"),
-    actionButton(inputId = "compute",
-                 label = "Compute"),
-    actionButton(inputId = "select",
-                 label = "Select Uploaded Files"),
     actionButton(inputId = "example",
                  label = "Use Example Input"),
+    verbatimTextOutput("fileName"),
+    actionButton(inputId = "compute",
+                 label = "Compute",
+                 style="color: #fff; background-color: #008000; border-color: #008000"),
     uiOutput("download1"),
     uiOutput("download2"),
     uiOutput("download3")
@@ -36,7 +35,7 @@ server <- function(input, output, session) {
   
   rv <- reactiveValues() # container for selected files
   
-  observeEvent(input$select, {
+  observe({
     rv$data <- input$files$datapath
     rv$name <- input$files$name
   })
@@ -47,9 +46,9 @@ server <- function(input, output, session) {
   })
   
   output$fileName <- renderText({ 
-    tmp <- NULL
+    tmp <- "No Files Uploaded"
     if (!is.null(rv$name)) {
-      tmp <- "Selected Files:\n"
+      tmp <- "Uploaded Files:\n"
       for (i in basename(rv$name)) {
         tmp <- paste(tmp,i,"\n")
       }
