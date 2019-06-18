@@ -82,18 +82,6 @@ server <- function(input, output, session) {
     return(tmp)
   })
   
-  # errorMessage <- reactive({ 
-  #   if (res() == "no file error") {
-  #     return("No input files uploaded")
-  #   } else if (res() == "wrong file error") {
-  #     return("Wrong type of file uploaded. Need .CEL file.")
-  #   } else if (res() == "wrong platform error") {
-  #     return(".CEL file is for wrong platform. Only upload files for HG-U133 Plus 2.0")
-  #   } else if (is.null(res())) {
-  #     return(NULL)
-  #   }
-  # })
-  
   FileTypeError <- function(flist) {
     if (is.null(flist)) {
       return("")
@@ -112,15 +100,16 @@ server <- function(input, output, session) {
   }
   
   res <- eventReactive(input$compute, {
-    print(rv$data)
+    
     shiny::validate(
       need(!is.null(rv$name), message = "Please upload files to process"),
       FileTypeError(rv$name)
     )
-    cool <- 4
+    
     progress <- Progress$new(session)
     progress$set(message = 'Preprocessing',
                  detail = 'This may take a few minutes...')
+    
     source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
     samples_matrix <- pre_proc(rv$data,rv$name)
     progress$set(message = 'Preprocessing Completed', detail = "")
