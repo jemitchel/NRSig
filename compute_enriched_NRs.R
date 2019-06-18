@@ -119,8 +119,7 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
 # This is the main function
 CalcEnrich <- function(testSamples){
   
-  # keeps track of runtime for progress bar
-  runtimes <- c()
+  # keeps track of progress
   num_completed <- 0
   
   # averages replicates if there are multiple
@@ -143,8 +142,6 @@ CalcEnrich <- function(testSamples){
     } else {
       next # if NR had less than 15 target genes go to next NR
     }
-    
-    start_time <- Sys.time() # starts timer
     
     # select just the probes that are targets of the current NR being evaluated
     test_sample_nr <- zscores[target_probes,,drop=F]
@@ -179,17 +176,12 @@ CalcEnrich <- function(testSamples){
     finNR[[NRs[d]]] <- list(outPlot,length(nrGeneLevelZ))
     finPvals[1,NRs[d]] <- result[["p.value"]]
 
-    # calculates remaining compute time
-    end_time <- Sys.time()
-    runtime <- end_time - start_time
-    runtimes <- c(runtimes,runtime)
+    # calculates percentage complete
     num_completed <- num_completed + 1
-    time_left <- mean(runtimes) * (15 - num_completed) / 60
-    minutes_left <- floor(time_left)
-    seconds_left <- round((time_left - minutes_left) * 60)
+    percent <- round(100*num_completed/15)
     
     incProgress(amount = 1/15,
-                detail = paste("       ",minutes_left, " minutes ",seconds_left," seconds remaining"))
+                detail = paste(percent,"% complete",""))
     
   }
   

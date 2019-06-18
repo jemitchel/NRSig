@@ -1,6 +1,7 @@
 library(shiny)
 library(DT)
 library(shinydashboard)
+library(affy)
 
 ui <- dashboardPage(
   dashboardHeader(),
@@ -11,6 +12,7 @@ ui <- dashboardPage(
     actionButton(inputId = "example",
                  label = "Use Example Input"),
     verbatimTextOutput("fileName"),
+    verbatimTextOutput("errorBox"),
     actionButton(inputId = "compute",
                  label = "Compute",
                  style="color: #fff; background-color: #008000; border-color: #008000"),
@@ -29,7 +31,7 @@ ui <- dashboardPage(
 )
 
 # ui <- fluidPage(
-#   
+#
 #   sidebarLayout(
 #     sidebarPanel(
 #       fileInput(inputId = "files",
@@ -58,58 +60,74 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   # increases allowable size of file uploads
   options(shiny.maxRequestSize=30*1024^2)
-  
+
   rv <- reactiveValues() # container for selected files
-  
+  nclicks <- reactiveVal(0) # reactive number times compute is clicked
+
   observe({
     rv$data <- input$files$datapath
     rv$name <- input$files$name
+    nclicks(0)
   })
-  
+
   observeEvent(input$example, {
     rv$data <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
     rv$name <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
+    nclicks(0)
   })
-  
-  output$fileName <- renderText({ 
+
+  output$fileName <- renderText({
     tmp <- "No Files Uploaded"
     if (!is.null(rv$name)) {
       tmp <- "Uploaded Files:\n"
       for (i in basename(rv$name)) {
         tmp <- paste(tmp,i,"\n")
       }
-    } 
+    }
     return(tmp)
   })
   
-  FileTypeError <- function(flist) {
+  output$errorBox <- renderText({
+    rv$errorMessage
+  })
+
+  FileError <- function(flist) {
     if (is.null(flist)) {
-      return("")
+      return("Error: Please upload files to process")
     }
     for (i in 1:length(flist)) {
       len <- nchar(flist[[i]])
       last4 <- substr(flist[[i]],len-3,len)
       if (!identical(last4,".CEL")) {
-        return("Upload includes file(s) not ending in .CEL ")
+        return("Error: Upload includes file(s) not ending in .CEL ")
       }
       cdfName <- whatcdf(flist[[i]])
       if (!identical(cdfName,"HG-U133_Plus_2")) {
-        return("Input file(s) are for wrong platform. Use CEL files for HG-U133_Plus_2 only.")
+        return("Error: Input file(s) are for wrong platform. Use CEL files for HG-U133_Plus_2 only.")
       }
     }
   }
-  
-  res <- eventReactive(input$compute, {
+
+  res <- reactiveVal()
+
+  observeEvent(input$compute, {
     
-    shiny::validate(
-      need(!is.null(rv$name), message = "Please upload files to process"),
-      FileTypeError(rv$name)
-    )
-    
+    rv$errorMessage <- FileError(rv$data)
+    if (!is.null(rv$errorMessage)) {
+      return(NULL)
+    }
+
+    if(nclicks() != 0){
+      return(NULL)
+    }
+
+    # Increment clicks and prevent concurrent analyses
+    nclicks(nclicks() + 1)
+
     progress <- Progress$new(session)
     progress$set(message = 'Preprocessing',
                  detail = 'This may take a few minutes...')
-    
+
     source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
     samples_matrix <- pre_proc(rv$data,rv$name)
     progress$set(message = 'Preprocessing Completed', detail = "")
@@ -118,7 +136,8 @@ server <- function(input, output, session) {
     withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...', value = 0,{
       source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
       results <- CalcEnrich(samples_matrix)
-      return(results)
+      res(results)
+      # return(results)
     })
 
   })
@@ -131,21 +150,30 @@ server <- function(input, output, session) {
     }
     inputs
   }
-  
+
   # produces the results dataframe with column of buttons
   tmptbl <- reactive({
+    if (is.null(res())){
+      return(NULL)
+    }
     data.frame(res()[[2]],
                       Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
                )
   })
-  
+
   # renders the results dataframe with column of buttons
   output$resTable <- DT::renderDataTable({
+    if (is.null(res())){
+      return(NULL)
+    }
     tmptbl()
   },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE)
 
   # chooses the correct plot depending which button is pushed
   chosenPlt <- eventReactive(input$select_button, {
+    if (is.null(res())){
+      return(NULL)
+    }
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
     selectedNR <- rownames(tmptbl())[selectedRow]
     return(res()[[1]][[selectedNR]])
@@ -153,12 +181,15 @@ server <- function(input, output, session) {
 
   # shows the selected table
   observe({
+    if (is.null(res())){
+      return(NULL)
+    }
     output$bplots <- renderPlot({
       chosenPlt()[[1]]
     },height = (5000/74)*chosenPlt()[[2]],width = 500)
   })
-  
-  
+
+
   output$download1 <- renderUI({
     if(!is.null(res())) {
       downloadButton('downloadfRMA', label = "fRMA Preprocessed Input")
@@ -170,13 +201,13 @@ server <- function(input, output, session) {
       downloadButton('downloadDiffex', label = "Differential Expression Results")
     }
   })
-    
+
   output$download3 <- renderUI({
     if(!is.null(chosenPlt())) {
       downloadButton('downloadPlot', label = "Boxplot Figure")
     }
   })
-  
+
   output$downloadfRMA <- downloadHandler(
     filename = function() { paste('input_preprocessed', '.csv', sep='') },
     content = function(file) {
@@ -190,7 +221,7 @@ server <- function(input, output, session) {
       write.csv(res()[[3]], file, row.names = FALSE)
     }
   )
-  
+
   output$downloadPlot <- downloadHandler(
     filename = function() { paste(chosenPlt()[[1]]$labels$title, '.png', sep='') },
     content = function(file) {
@@ -198,10 +229,99 @@ server <- function(input, output, session) {
              height = (60/74)*chosenPlt()[[2]], width = 5,limitsize = FALSE)
     }
   )
-  
+
 }
 
 shinyApp(ui, server)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
