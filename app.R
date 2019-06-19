@@ -6,6 +6,7 @@ library(affy)
 ui <- dashboardPage(
   dashboardHeader(),
   dashboardSidebar(
+    width = 350,
     fileInput(inputId = "files",
               label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
               multiple = TRUE),
@@ -22,11 +23,10 @@ ui <- dashboardPage(
   ),
   dashboardBody(
     fluidRow(
-      column(width = 6,
-             DT::dataTableOutput("resTable")),
-      column(width = 6,
-             plotOutput("bplots"))
-    )
+      column(width = 6, DT::dataTableOutput("resTable")),
+      column(width = 6, plotOutput("bplots"))
+    ),
+    div(style = "height:5000px;")
   )
 )
 
@@ -67,12 +67,14 @@ server <- function(input, output, session) {
   observe({
     rv$data <- input$files$datapath
     rv$name <- input$files$name
+    rv$errorMessage <- NULL
     nclicks(0)
   })
 
   observeEvent(input$example, {
     rv$data <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
     rv$name <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
+    rv$errorMessage <- NULL
     nclicks(0)
   })
 
@@ -90,28 +92,32 @@ server <- function(input, output, session) {
   output$errorBox <- renderText({
     rv$errorMessage
   })
-
+  
+  
+  # determines if there is a problem with uploaded files
   FileError <- function(flist) {
     if (is.null(flist)) {
       return("Error: Please upload files to process")
-    }
-    for (i in 1:length(flist)) {
-      len <- nchar(flist[[i]])
-      last4 <- substr(flist[[i]],len-3,len)
-      if (!identical(last4,".CEL")) {
-        return("Error: Upload includes file(s) not ending in .CEL ")
+    } else {
+      for (i in 1:length(flist)) {
+        len <- nchar(flist[[i]])
+        last4 <- substr(flist[[i]],len-3,len)
+        if (!identical(last4,".CEL")) {
+          return("Error: Upload includes file(s) not ending in .CEL ")
+        }
+        cdfName <- whatcdf(flist[[i]])
+        if (!identical(cdfName,"HG-U133_Plus_2")) {
+          return("Error: Input file(s) are for wrong platform. Use CEL files for HG-U133_Plus_2 only.")
+        }
       }
-      cdfName <- whatcdf(flist[[i]])
-      if (!identical(cdfName,"HG-U133_Plus_2")) {
-        return("Error: Input file(s) are for wrong platform. Use CEL files for HG-U133_Plus_2 only.")
-      }
     }
+    return(NULL)
   }
+  
 
-  res <- reactiveVal()
+  res <- reactiveVal() # holds all calculation results
 
   observeEvent(input$compute, {
-    
     rv$errorMessage <- FileError(rv$data)
     if (!is.null(rv$errorMessage)) {
       return(NULL)
@@ -120,10 +126,10 @@ server <- function(input, output, session) {
     if(nclicks() != 0){
       return(NULL)
     }
-
+    
     # Increment clicks and prevent concurrent analyses
     nclicks(nclicks() + 1)
-
+    
     progress <- Progress$new(session)
     progress$set(message = 'Preprocessing',
                  detail = 'This may take a few minutes...')
@@ -137,7 +143,7 @@ server <- function(input, output, session) {
       source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
       results <- CalcEnrich(samples_matrix)
       res(results)
-      # return(results)
+      
     })
 
   })
@@ -229,7 +235,7 @@ server <- function(input, output, session) {
              height = (60/74)*chosenPlt()[[2]], width = 5,limitsize = FALSE)
     }
   )
-
+  
 }
 
 shinyApp(ui, server)
