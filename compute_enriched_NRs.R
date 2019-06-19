@@ -95,6 +95,14 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   inData <- inData[match(names(ordered_z), inData$gene),]
   inData$gene <- factor(inData$gene, levels = inData$gene) # orders the factor for plot
   inData$zsc <- round(inData$zsc,digits = 2)
+  
+  # makes data to build the legend
+  boxPlotLegend <- data.frame(c(26.5,27),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-1,2])))
+  colnames(boxPlotLegend) <- c("vals","loc")
+  inputPlotLegend <- data.frame(c(26.5),c(as.character(inData[nrow(inData)-2,2])))
+  colnames(inputPlotLegend) <- c("vals","loc")
+  textLegend <- data.frame(c("Serum-Starved","Input Sample"),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-2,2])))
+  colnames(textLegend) <- c("vals","loc")
    
   # makes the plot
   p <- ggplot(data = inData, aes(x=as.factor(gene), y=expr)) +
@@ -103,9 +111,12 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
     geom_boxplot(data = distrib, aes(x=as.factor(gene), y=expr), width=.3) +
     geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
     coord_flip() +
+    geom_line(data = boxPlotLegend, aes(x=as.factor(loc), y=vals), color='black') +
+    geom_point(data = inputPlotLegend, aes(x=as.factor(loc), y=vals), color='red', size=3) +
+    geom_text(data = textLegend, aes(x=as.factor(loc), y=24, label=vals)) +
     labs(title=paste(NR, " Target Expression", sep=""), 
          subtitle = "Z-Score", x="Target Gene", y="fRMA Expression") +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .975)) +
+    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .8)) +
     theme(axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -153,12 +164,16 @@ CalcEnrich <- function(testSamples){
     nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
     nrGeneLevelZ_mappings <- nrGeneLevelZ[[2]]
     nrGeneLevelZ <- nrGeneLevelZ[[1]]
+    
+    # generate boxplots of the data
+    outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
+    
     restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
     restGeneLevelZ_mappings <- restGeneLevelZ[[2]]
     restGeneLevelZ <- restGeneLevelZ[[1]]
     
-    # generate boxplots of the data
-    outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
+    # # generate boxplots of the data
+    # outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
     
     # figure out how many target and non-targets are dysregulated
     nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)

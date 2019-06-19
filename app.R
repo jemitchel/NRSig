@@ -23,7 +23,7 @@ ui <- dashboardPage(
   ),
   dashboardBody(
     fluidRow(
-      column(width = 6, DT::dataTableOutput("resTable")),
+      column(width = 6, DT::dataTableOutput("resTable"),textOutput("placeHolder")),
       column(width = 6, plotOutput("bplots"))
     ),
     div(style = "height:5000px;")
@@ -63,6 +63,7 @@ server <- function(input, output, session) {
 
   rv <- reactiveValues() # container for selected files
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
+  finished <- reactiveVal("Results will be displayed here") 
 
   observe({
     rv$data <- input$files$datapath
@@ -91,6 +92,10 @@ server <- function(input, output, session) {
   
   output$errorBox <- renderText({
     rv$errorMessage
+  })
+  
+  output$placeHolder <- renderText({
+    finished()
   })
   
   
@@ -145,7 +150,8 @@ server <- function(input, output, session) {
       res(results)
       
     })
-
+    
+    finished("")
   })
 
   # makes inputs for buttons on output results table
