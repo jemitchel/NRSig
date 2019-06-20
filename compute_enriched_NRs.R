@@ -116,7 +116,7 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
     geom_text(data = textLegend, aes(x=as.factor(loc), y=24, label=vals)) +
     labs(title=paste(NR, " Target Expression", sep=""), 
          subtitle = "Z-Score", x="Target Gene", y="fRMA Expression") +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .8)) +
+    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .7)) +
     theme(axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),

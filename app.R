@@ -30,32 +30,6 @@ ui <- dashboardPage(
   )
 )
 
-# ui <- fluidPage(
-#
-#   sidebarLayout(
-#     sidebarPanel(
-#       fileInput(inputId = "files",
-#                 label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
-#                 multiple = TRUE),
-#       actionButton(inputId = "example",
-#                    label = "Use Example Input"),
-#       verbatimTextOutput("fileName"),
-#       actionButton(inputId = "compute",
-#                    label = "Compute",
-#                    style="color: #fff; background-color: #008000; border-color: #008000"),
-#       uiOutput("download1"),
-#       uiOutput("download2"),
-#       uiOutput("download3")
-#     ),
-#     mainPanel(
-#       column(width = 6,
-#              DT::dataTableOutput("resTable")),
-#       column(width = 6,
-#              plotOutput("bplots"))
-#     )
-#   )
-# )
-
 
 server <- function(input, output, session) {
   # increases allowable size of file uploads
@@ -74,7 +48,7 @@ server <- function(input, output, session) {
 
   observeEvent(input$example, {
     rv$data <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
-    rv$name <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
+    rv$name <- c("example.CEL")
     rv$errorMessage <- NULL
     nclicks(0)
   })
@@ -198,25 +172,28 @@ server <- function(input, output, session) {
     }
     output$bplots <- renderPlot({
       chosenPlt()[[1]]
-    },height = (5000/74)*chosenPlt()[[2]],width = 500)
+    },height = (3500/74)*chosenPlt()[[2]],width = 500)
   })
 
 
   output$download1 <- renderUI({
     if(!is.null(res())) {
-      downloadButton('downloadfRMA', label = "fRMA Preprocessed Input")
+      downloadButton('downloadfRMA', label = "fRMA Preprocessed Input",
+                     style="color: #fff; background-color: #FFA500; border-color: #FFA500")
     }
   })
 
   output$download2 <- renderUI({
     if(!is.null(res())) {
-      downloadButton('downloadDiffex', label = "Differential Expression Results")
+      downloadButton('downloadDiffex', label = "Differential Expression Results",
+                     style="color: #fff; background-color: #FFA500; border-color: #FFA500")
     }
   })
 
   output$download3 <- renderUI({
     if(!is.null(chosenPlt())) {
-      downloadButton('downloadPlot', label = "Boxplot Figure")
+      downloadButton('downloadPlot', label = "Boxplot Figure",
+                     style="color: #fff; background-color: #FFA500; border-color: #FFA500")
     }
   })
 
