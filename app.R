@@ -10,16 +10,24 @@ ui <- dashboardPage(
     fileInput(inputId = "files",
               label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
               multiple = TRUE),
+    verbatimTextOutput("fileName"),
     actionButton(inputId = "example",
                  label = "Use Example Input"),
-    verbatimTextOutput("fileName"),
+    textOutput("addLine1"),
+    textOutput("xeno"),
+    fileInput(inputId = "crossProbes",
+              label = "Upload .csv of cross-hybridized probes to be removed (single column)",
+              multiple = FALSE),
+    verbatimTextOutput("hybridFileName"),
+    textOutput("addLine2"),
     verbatimTextOutput("errorBox"),
     actionButton(inputId = "compute",
                  label = "Compute",
                  style="color: #fff; background-color: #008000; border-color: #008000"),
     uiOutput("download1"),
     uiOutput("download2"),
-    uiOutput("download3")
+    uiOutput("download3"),
+    uiOutput("download4")
   ),
   dashboardBody(
     fluidRow(
@@ -54,7 +62,8 @@ server <- function(input, output, session) {
   })
 
   output$fileName <- renderText({
-    tmp <- "No Files Uploaded"
+    # tmp <- "No Files Uploaded"
+    tmp <- NULL
     if (!is.null(rv$name)) {
       tmp <- "Uploaded Files:\n"
       for (i in basename(rv$name)) {
@@ -66,6 +75,27 @@ server <- function(input, output, session) {
   
   output$errorBox <- renderText({
     rv$errorMessage
+  })
+  
+  output$addLine1 <- renderText({
+    "--------------------------------------------------------------------------------"
+  })
+  
+  output$xeno<- renderText({
+    "Only for xenograft samples:"
+  })
+  
+  output$hybridFileName <- renderText({
+    # tmp <- "No Files Uploaded"
+    tmp <- NULL
+    if (!is.null(input$crossProbes$name)) {
+      tmp <- paste("Uploaded File:\n",basename(input$crossProbes$name),"")
+    }
+    return(tmp)
+  })
+  
+  output$addLine2 <- renderText({
+    "--------------------------------------------------------------------------------"
   })
   
   output$placeHolder <- renderText({
@@ -109,21 +139,26 @@ server <- function(input, output, session) {
     # Increment clicks and prevent concurrent analyses
     nclicks(nclicks() + 1)
     
-    progress <- Progress$new(session)
-    progress$set(message = 'Preprocessing',
-                 detail = 'This may take a few minutes...')
-
-    source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
-    samples_matrix <- pre_proc(rv$data,rv$name)
-    progress$set(message = 'Preprocessing Completed', detail = "")
-    on.exit(progress$close())
-
-    withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...', value = 0,{
-      source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
-      results <- CalcEnrich(samples_matrix)
-      res(results)
+    if (identical(rv$name,"example.CEL")) {
+      # uses precomputed results
+      tmpres <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/exres.rds")
+      res(tmpres)
+    } else {
+      progress <- Progress$new(session)
+      progress$set(message = 'Preprocessing',
+                   detail = 'This may take a few minutes...')
       
-    })
+      source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
+      samples_matrix <- pre_proc(rv$data,rv$name,input$crossProbes$datapath)
+      progress$set(message = 'Preprocessing Completed', detail = "")
+      on.exit(progress$close())
+      
+      withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...', value = 0,{
+        source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
+        results <- CalcEnrich(samples_matrix)
+        res(results)
+      })
+    }
     
     finished("")
   })
@@ -154,6 +189,7 @@ server <- function(input, output, session) {
     }
     tmptbl()
   },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE)
+  
 
   # chooses the correct plot depending which button is pushed
   chosenPlt <- eventReactive(input$select_button, {
@@ -172,28 +208,36 @@ server <- function(input, output, session) {
     }
     output$bplots <- renderPlot({
       chosenPlt()[[1]]
-    },height = (3500/74)*chosenPlt()[[2]],width = 500)
+    },height = (3000/74)*chosenPlt()[[2]],width = 500)
   })
 
 
+  # download buttons and handlers
   output$download1 <- renderUI({
     if(!is.null(res())) {
       downloadButton('downloadfRMA', label = "fRMA Preprocessed Input",
-                     style="color: #fff; background-color: #FFA500; border-color: #FFA500")
+                     style="color: #fff; background-color: #A9A9A9; border-color: #A9A9A9")
     }
   })
 
   output$download2 <- renderUI({
     if(!is.null(res())) {
       downloadButton('downloadDiffex', label = "Differential Expression Results",
-                     style="color: #fff; background-color: #FFA500; border-color: #FFA500")
+                     style="color: #fff; background-color: #A9A9A9; border-color: #A9A9A9")
+    }
+  })
+  
+  output$download3 <- renderUI({
+    if(!is.null(res())) {
+      downloadButton('downloadEnrich', label = "Enrichment Results",
+                     style="color: #fff; background-color: #A9A9A9; border-color: #A9A9A9")
     }
   })
 
-  output$download3 <- renderUI({
+  output$download4 <- renderUI({
     if(!is.null(chosenPlt())) {
       downloadButton('downloadPlot', label = "Boxplot Figure",
-                     style="color: #fff; background-color: #FFA500; border-color: #FFA500")
+                     style="color: #fff; background-color: #A9A9A9; border-color: #A9A9A9")
     }
   })
 
@@ -208,6 +252,13 @@ server <- function(input, output, session) {
     filename = function() { paste('diff_exprs', '.csv', sep='') },
     content = function(file) {
       write.csv(res()[[3]], file, row.names = FALSE)
+    }
+  )
+  
+  output$downloadEnrich <- downloadHandler(
+    filename = function() { paste('enriched', '.csv', sep='') },
+    content = function(file) {
+      write.csv(res()[[2]], file, row.names = FALSE)
     }
   )
 
