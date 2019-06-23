@@ -8,15 +8,14 @@ ui <- dashboardPage(
   dashboardSidebar(
     width = 350,
     fileInput(inputId = "files",
-              label = "Upload .CEL files for one sample or multiple replicates (replicates will be averaged)",
+              label = "Upload .CEL files for one sample or a group of replicates (replicates will be averaged)",
               multiple = TRUE),
     verbatimTextOutput("fileName"),
     actionButton(inputId = "example",
                  label = "Use Example Input"),
     textOutput("addLine1"),
-    textOutput("xeno"),
     fileInput(inputId = "crossProbes",
-              label = "Upload .csv of cross-hybridized probes to be removed (single column)",
+              label = "Xenograft samples only: Upload .csv of cross-hybridized probes to be removed (single column)",
               multiple = FALSE),
     verbatimTextOutput("hybridFileName"),
     textOutput("addLine2"),
@@ -31,6 +30,7 @@ ui <- dashboardPage(
   ),
   dashboardBody(
     fluidRow(
+      box(title = "NRSig", width = 12, textOutput("intro")),
       column(width = 6, DT::dataTableOutput("resTable"),textOutput("placeHolder")),
       column(width = 6, plotOutput("bplots"))
     ),
@@ -47,6 +47,14 @@ server <- function(input, output, session) {
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
   finished <- reactiveVal("Results will be displayed here") 
 
+  output$intro <- renderText({
+    "This program computes differentially expressed genes between a query MCF7 microarray sample
+    and prior distributions generated from serum-starved MCF7 samples. This allows for
+    identification of transcriptionally active nuclear receptors in the query sample by
+    calculating enriched NR-target gene sets among the differentially expressed genes. Currently,
+    NRSig only accepts samples generated on the HG-U133 Plus 2.0 platform."
+  })
+  
   observe({
     rv$data <- input$files$datapath
     rv$name <- input$files$name
@@ -55,7 +63,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$example, {
-    rv$data <- c("C:/Users/jonat/Documents/R/NRSig-app/data/example.CEL")
+    rv$data <- c("./data/example.CEL")
     rv$name <- c("example.CEL")
     rv$errorMessage <- NULL
     nclicks(0)
@@ -79,10 +87,6 @@ server <- function(input, output, session) {
   
   output$addLine1 <- renderText({
     "--------------------------------------------------------------------------------"
-  })
-  
-  output$xeno<- renderText({
-    "Only for xenograft samples:"
   })
   
   output$hybridFileName <- renderText({
@@ -141,20 +145,20 @@ server <- function(input, output, session) {
     
     if (identical(rv$name,"example.CEL")) {
       # uses precomputed results
-      tmpres <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/exres.rds")
+      tmpres <- readRDS("./data/exres.rds")
       res(tmpres)
     } else {
       progress <- Progress$new(session)
       progress$set(message = 'Preprocessing',
                    detail = 'This may take a few minutes...')
       
-      source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
+      source("preprocess.R")
       samples_matrix <- pre_proc(rv$data,rv$name,input$crossProbes$datapath)
       progress$set(message = 'Preprocessing Completed', detail = "")
       on.exit(progress$close())
       
       withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...', value = 0,{
-        source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
+        source("compute_enriched_NRs.R")
         results <- CalcEnrich(samples_matrix)
         res(results)
       })

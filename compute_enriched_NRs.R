@@ -9,12 +9,10 @@ mapped_probes <- mappedkeys(x)
 glist <- as.list(x[mapped_probes]) #list of symbols with only probes that map to genes
 
 # opens the tf-target probe data source 
-allTargets <- fromJSON("C:/Users/jonat/Documents/R/NRSig-app/data/NR_target_probes.json", flatten=TRUE) #use this one for testing
-# allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
+allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
 
 # loads dataframe of serum starved MCF7 samples
-data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved.rds") #use this for testing
-# data <- readRDS(file = "./data/serum-starved.rds") 
+data <- readRDS(file = "./data/serum-starved.rds")
 
 # computes mean and standard deviation for serum starved data
 data_av_std <- data.frame(Mean=rowMeans(data,na.rm=TRUE),Std=apply(data,1,sd,na.rm=TRUE))
