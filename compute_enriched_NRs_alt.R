@@ -3,6 +3,7 @@ library(jsonlite)
 library("hgu133plus2.db")
 library(ggplot2)
 library(genefilter)
+library(scales)
 
 # gets gene symbol annotations for all probes
 x <- hgu133plus2SYMBOL
@@ -145,7 +146,9 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR,useZsc) {
   if (useZsc) {
     inData$zsc <- round(inData$zsc,digits = 2)
   } else {
-    inData$zsc <- round(inData$zsc,digits = 5)
+    # inData$zsc <- round(inData$zsc,digits = 5)
+    # formatC(inData$zsc, format = "e", digits = 2)
+    inData$zsc <- scientific(inData$zsc, digits = 2)
   }
   
   # makes data to build the legend
@@ -153,7 +156,7 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR,useZsc) {
   colnames(boxPlotLegend) <- c("vals","loc")
   inputPlotLegend <- data.frame(c(26.5),c(as.character(inData[nrow(inData)-2,2])))
   colnames(inputPlotLegend) <- c("vals","loc")
-  textLegend <- data.frame(c("Serum-Starved","Input Mean"),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-2,2])))
+  textLegend <- data.frame(c("Serum-Starved Distrib.","Input Samples Mean"),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-2,2])))
   colnames(textLegend) <- c("vals","loc")
   
   # makes the plot
