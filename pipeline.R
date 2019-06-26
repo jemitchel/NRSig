@@ -13,12 +13,14 @@
 # # c1 <- cool[[1]]
 # # c2 <- cool[[2]]
 # 
-# files <- "C:\\Users\\jonat\\Documents\\Research\\app test folder\\c2_(HG-U133_Plus_2).CEL"
+# files <- c("C:\\Users\\jonat\\Documents\\Research\\app test folder\\c2_(HG-U133_Plus_2).CEL",
+#            "C:\\Users\\jonat\\Documents\\Research\\app test folder\\c3_(HG-U133_Plus_2).CEL")
 # 
 # source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
-# samples_matrix <- pre_proc(files,files)
+# samples_matrix <- pre_proc(files,files,NULL)
 
 # Computes enrichment
-source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
+source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs_alt.R")
 results <- CalcEnrich(samples_matrix)
+
 
