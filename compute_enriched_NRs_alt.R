@@ -15,7 +15,7 @@ allTargets <- fromJSON("C:/Users/jonat/Documents/R/NRSig-app/data/NR_target_prob
 # allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
 
 # loads dataframe of serum starved MCF7 samples
-data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved.rds") #use this for testing
+data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved_qc.rds") #use this for testing
 # data <- readRDS(file = "./data/serum-starved.rds")
 
 # computes mean and standard deviation for serum starved data
@@ -38,17 +38,18 @@ NRs <- c("ESR1", "AR", "NR3C1", "NR3C2", "PGR",
 getDiffex <- function(ss,test) {
   combined <- as.matrix(data.frame(ss,test))
   
-  # # if assume equal variance TRY THIS ON WHOLE DATASET TO SEE WHICH IS BETTER
-  # groups <- as.factor(c(rep(0, ncol(ss)), rep(1, ncol(test))))
-  # pvals <- rowttests(combined, groups)
-  
-  # if don't assume equal variances
-  print(64+ncol(test))
-  tStats <- fastT(combined,1:64,65:(64+ncol(test)),var.equal=FALSE)
-  pvals <- 2*pt(-abs(tStats$z),df=ncol(combined)-2)
-
+  # if assume equal variance TRY THIS ON WHOLE DATASET TO SEE WHICH IS BETTER
+  groups <- as.factor(c(rep(0, ncol(ss)), rep(1, ncol(test))))
+  pvals <- rowttests(combined, groups)
   # does fdr adjust on pvalues
-  padj <- p.adjust(pvals,method = "fdr")
+  padj <- p.adjust(pvals[,3],method = "fdr")
+  
+  # # if don't assume equal variances
+  # print(64+ncol(test))
+  # tStats <- fastT(combined,1:64,65:(64+ncol(test)),var.equal=FALSE)
+  # pvals <- 2*pt(-abs(tStats$z),df=ncol(combined)-2)
+  # # does fdr adjust on pvalues
+  # padj <- p.adjust(pvals,method = "fdr")
   
   scores <- data.frame('pval' = padj)
   rownames(scores) <- rownames(ss)
@@ -105,7 +106,7 @@ GetNumAboveThreshold <- function(scores,useZsc) {
       }
     }
   } else{
-    thresh <- .05 
+    thresh <- .001 
     for (i in 1:length(scores)) {
       if (abs(scores[[i]]) < thresh) {
         count <- count + 1
@@ -146,15 +147,13 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR,useZsc) {
   if (useZsc) {
     inData$zsc <- round(inData$zsc,digits = 2)
   } else {
-    # inData$zsc <- round(inData$zsc,digits = 5)
-    # formatC(inData$zsc, format = "e", digits = 2)
     inData$zsc <- scientific(inData$zsc, digits = 2)
   }
   
   # makes data to build the legend
-  boxPlotLegend <- data.frame(c(26.5,27),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-1,2])))
+  boxPlotLegend <- data.frame(c(28,28.5),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-1,2])))
   colnames(boxPlotLegend) <- c("vals","loc")
-  inputPlotLegend <- data.frame(c(26.5),c(as.character(inData[nrow(inData)-2,2])))
+  inputPlotLegend <- data.frame(c(28),c(as.character(inData[nrow(inData)-2,2])))
   colnames(inputPlotLegend) <- c("vals","loc")
   textLegend <- data.frame(c("Serum-Starved Distrib.","Input Samples Mean"),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-2,2])))
   colnames(textLegend) <- c("vals","loc")
@@ -168,7 +167,7 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR,useZsc) {
     coord_flip() +
     geom_line(data = boxPlotLegend, aes(x=as.factor(loc), y=vals), color='black') +
     geom_point(data = inputPlotLegend, aes(x=as.factor(loc), y=vals), color='red', size=3) +
-    geom_text(data = textLegend, aes(x=as.factor(loc), y=24, label=vals)) +
+    geom_text(data = textLegend, aes(x=as.factor(loc), y=25, label=vals)) +
     labs(title=paste(NR, " Target Expression", sep=""), 
          subtitle = "Z-Score", x="Target Gene", y="fRMA Expression") +
     theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .7)) +
@@ -183,11 +182,19 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR,useZsc) {
 
 
 # This is the main function
-CalcEnrich <- function(testSamples){
+CalcEnrich <- function(testSamples,crossProbes){
   test_sample <- testSamples
   
   # keeps track of progress
   num_completed <- 0
+  
+  # removes probes from ss data if removed probes from input sample
+  if (!is.null(crossProbes)) {
+    hyb <- read.csv(crossProbes, stringsAsFactors = F, header = F)
+    hyb <- as.list(hyb[,1])
+    data <- data[!(rownames(data) %in% hyb),]
+    data_av_std <- data_av_std[!(rownames(data_av_std) %in% hyb),]
+  }
   
   # compute scores for all probes (test sample versus serum-starved prior distributions)
   if (ncol(test_sample) == 1) {
@@ -254,8 +261,8 @@ CalcEnrich <- function(testSamples){
     num_completed <- num_completed + 1
     percent <- round(100*num_completed/15)
     
-    incProgress(amount = 1/15,
-                detail = paste(percent,"% complete",""))
+    # incProgress(amount = 1/15,
+    #             detail = paste(percent,"% complete",""))
     
   }
   
@@ -277,9 +284,14 @@ CalcEnrich <- function(testSamples){
   # adds gene symbol annotations to differentially expressed probes list
   syms <- as.character(glist[rownames(scores)])
   syms <- replace(syms, syms=="NULL", "")
-  scores <- cbind(scores,syms)
+  scores <- data.frame(scores,syms)
   # sorts differentially expressed probes list
-  scores <- scores[order(abs(unlist(scores[,1])), decreasing=FALSE),]
+  if (useZsc) {
+    scores <- scores[order(abs(unlist(scores[,1])), decreasing=TRUE),]
+  } else {
+    scores <- scores[order(abs(unlist(scores[,1])), decreasing=FALSE),]
+  }
+
   
   # makes probe ID to first column and names columns (for both downloadable tables)
   scores <- cbind(Row.Names = rownames(scores), scores)
@@ -287,6 +299,7 @@ CalcEnrich <- function(testSamples){
   testSamples <- cbind(Row.Names = rownames(testSamples), testSamples)
   colnames(testSamples)[1] <- c("Probeset ID")
   
+  print(finPvals)
   
   return(list(finNR,finPvals,scores,testSamples))
 }

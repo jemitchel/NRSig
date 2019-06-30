@@ -129,10 +129,18 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
 
 
 # This is the main function
-CalcEnrich <- function(testSamples){
+CalcEnrich <- function(testSamples, crossProbes){
   
   # keeps track of progress
   num_completed <- 0
+  
+  # removes probes from ss data if removed probes from input sample
+  if (!is.null(crossProbes)) {
+    hyb <- read.csv(crossProbes, stringsAsFactors = F, header = F)
+    hyb <- as.list(hyb[,1])
+    data <- data[!(rownames(data) %in% hyb),]
+    data_av_std <- data_av_std[!(rownames(data_av_std) %in% hyb),]
+  }
   
   # averages replicates if there are multiple
   test_sample <- data.frame(Mean=rowMeans(testSamples,na.rm=TRUE))
