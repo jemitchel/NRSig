@@ -10,7 +10,7 @@ pre_proc <- function(direcs,file_names,crossProbes) {
   if (!is.null(crossProbes)) {
     hyb <- read.csv(crossProbes, stringsAsFactors = F, header = F)
     hyb <- as.list(hyb[,1])
-    eset <- eset[!(rownames(eset) %in% hyb),]
+    eset <- eset[!(rownames(eset) %in% hyb),,drop=F]
     
   }
   return(eset)

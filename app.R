@@ -158,8 +158,8 @@ server <- function(input, output, session) {
       on.exit(progress$close())
       
       withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...', value = 0,{
-        source("compute_enriched_NRs_alt.R")
-        results <- CalcEnrich(samples_matrix)
+        source("compute_enriched_NRs.R")
+        results <- CalcEnrich(samples_matrix,input$crossProbes$datapath)
         res(results)
       })
     }

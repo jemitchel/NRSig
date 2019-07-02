@@ -1,7 +1,11 @@
 
 library(ggplot2)
 
-results <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\E2_results_eqv.rds")
+# results <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\E2_results_eqv.rds")
+# results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/E2_results_qc.rds")
+# results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/xeno_results_indv_no5.rds")
+results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/xeno_results_5.rds")
+
 
 findb <- data.frame(matrix(ncol = 3, nrow = 0))
 colnames(findb) <- c("sample","NR","pval")
@@ -10,7 +14,7 @@ for (i in 1:length(results)) {
   pvals <- data.frame(results[[i]][[2]])
   pvals[,3] <- as.numeric(as.character(pvals[,3]))
   for (j in 1:nrow(pvals)) {
-    r <- ((i-1)*15)+j
+    r <- ((i-1)*nrow(pvals))+j
     findb[r,1] <- names(results[i])
     findb[r,2] <- as.character(pvals[j,1])
     
@@ -40,9 +44,9 @@ for (i in 1:nrow(findb)) {
 NRordered <- names(NRordered)[order(unlist(NRordered), decreasing = TRUE)]
 
 findb$NR <- factor(findb$NR, levels = NRordered)
-findb$sample <- factor(findb$sample, levels = rev(c("ex1","ex2","ex3","ex4","ex5","ex6","ex7","ex8",
-                                                "ex9","ex10","ex11","ex12","ex13","ex14","ex15",
-                                                "ex16","ex17","ex18","ex19","ex20","ex21")))
+# findb$sample <- factor(findb$sample, levels = rev(c("ex1","ex2","ex3","ex4","ex5","ex6","ex7","ex8",
+#                                                 "ex9","ex10","ex11","ex12","ex13","ex14","ex15",
+#                                                 "ex16","ex17","ex18","ex19","ex20","ex21")))
 
 colors <- colorRampPalette(c("lightblue", "blue", "gray"))(n=3)
 p <- ggplot(data = findb, aes(x = NR, y = sample, fill = pval)) +

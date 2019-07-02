@@ -127,6 +127,37 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   return(p)
 }
 
+UpdateTargets <- function(data) {
+
+  for (i in 1:length(NRs)) {
+    NR <- NRs[i]
+    rems <- c()
+    if (NR %in% names(allTargets)) { #if it hasnt alreay been removed...
+      tlist <- allTargets[[NR]]
+      for (j in 1:length(tlist)) {
+        probe <- tlist[j]
+        if (!(probe %in% rownames(data))) {
+          rems <- c(rems,probe)
+        }
+      }
+      
+      if (length(rems) > 0) {
+        for (j in 1:length(rems)) {
+          tlist <- tlist[tlist != rems[j]]
+        }
+      }
+      
+      asGenes <- unique(glist[tlist])
+      if (length(asGenes) < 15) {
+        allTargets[[NR]] <- NULL
+      } else {
+        allTargets[[NR]] <- tlist
+      }
+    }
+  }
+  return(allTargets)
+}
+
 
 # This is the main function
 CalcEnrich <- function(testSamples, crossProbes){
@@ -134,12 +165,15 @@ CalcEnrich <- function(testSamples, crossProbes){
   # keeps track of progress
   num_completed <- 0
   
-  # removes probes from ss data if removed probes from input sample
+  # removes probes from ss data and target source if removed probes from input sample
   if (!is.null(crossProbes)) {
     hyb <- read.csv(crossProbes, stringsAsFactors = F, header = F)
     hyb <- as.list(hyb[,1])
     data <- data[!(rownames(data) %in% hyb),]
     data_av_std <- data_av_std[!(rownames(data_av_std) %in% hyb),]
+    av <- data_av_std[,1]
+    std <- data_av_std[,2]
+    allTargets <- UpdateTargets(data)
   }
   
   # averages replicates if there are multiple
@@ -202,9 +236,9 @@ CalcEnrich <- function(testSamples, crossProbes){
 
     # calculates percentage complete
     num_completed <- num_completed + 1
-    percent <- round(100*num_completed/15)
+    percent <- round(100*num_completed/length(allTargets))
     
-    # incProgress(amount = 1/15,
+    # incProgress(amount = 1/length(allTargets),
     #             detail = paste(percent,"% complete",""))
     
   }
@@ -236,6 +270,8 @@ CalcEnrich <- function(testSamples, crossProbes){
   colnames(zscores) <- c("Probeset ID","Z-Score","Gene Symbol")
   testSamples <- cbind(Row.Names = rownames(testSamples), testSamples)
   colnames(testSamples)[1] <- c("Probeset ID")
+  
+  print(finPvals)
   
 
   return(list(finNR,finPvals,zscores,testSamples))
