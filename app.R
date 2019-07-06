@@ -2,6 +2,7 @@ library(shiny)
 library(DT)
 library(shinydashboard)
 library(affy)
+library(ggplot2)
 
 ui <- dashboardPage(
   dashboardHeader(),
@@ -270,7 +271,7 @@ server <- function(input, output, session) {
     filename = function() { paste(chosenPlt()[[1]]$labels$title, '.png', sep='') },
     content = function(file) {
       ggsave(file, plot = chosenPlt()[[1]], device = "png",
-             height = (60/74)*chosenPlt()[[2]], width = 5,limitsize = FALSE)
+             height = (45/74)*chosenPlt()[[2]], width = 6.75,limitsize = FALSE)
     }
   )
   

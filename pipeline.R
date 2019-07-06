@@ -1,6 +1,6 @@
 
 source("C:/Users/jonat/Documents/R/NRSig-app/preprocess.R")
-source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs_alt.R")
+source("C:/Users/jonat/Documents/R/NRSig-app/compute_enriched_NRs.R")
 
 pipeline <- function(files,rem) {
   # preprocesses cel files

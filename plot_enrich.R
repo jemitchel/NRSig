@@ -1,10 +1,19 @@
 
 library(ggplot2)
 
-# results <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\E2_results_eqv.rds")
+# results <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_results_av.rds")
+# results <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_indv_20.rds")
 # results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/E2_results_qc.rds")
 # results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/xeno_results_indv_no5.rds")
-results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/xeno_results_5.rds")
+# results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/xeno_results_av_5_qc.rds")
+results <- readRDS("C:/Users/jonat/Documents/R/NRSig-app/data/enr_results/fbs_indv.rds")
+
+# results1 <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_indv_10.rds")
+# results2 <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_indv_20.rds")
+# results3 <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_indv_30.rds")
+# results4 <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_indv_43.rds")
+# results5 <- readRDS("C:\\Users\\jonat\\Documents\\R\\NRSig-app\\data\\enr_results\\E2_indv_56.rds")
+# results <- c(results1,results2,results3,results4,results5)
 
 
 findb <- data.frame(matrix(ncol = 3, nrow = 0))

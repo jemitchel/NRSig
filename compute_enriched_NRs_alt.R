@@ -15,7 +15,7 @@ allTargets <- fromJSON("C:/Users/jonat/Documents/R/NRSig-app/data/NR_target_prob
 # allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
 
 # loads dataframe of serum starved MCF7 samples
-data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved_qc.rds") #use this for testing
+data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved.rds") #use this for testing
 # data <- readRDS(file = "./data/serum-starved.rds")
 
 # computes mean and standard deviation for serum starved data
@@ -24,7 +24,7 @@ av <- data_av_std[,1]
 std <- data_av_std[,2]
 
 # all 48 NRs (some won't be tested since have < 15 target genes listed in TTRUST)
-NRs <- c("ESR1", "AR", "NR3C1", "NR3C2", "PGR",
+NRs <- c("NR5A1","ESR1", "AR", "NR3C1", "NR3C2", "PGR",
          "NR4A1", "NR4A2", "NR4A3", "NR5A1", "NR5A2", "NR6A1",
          "NR0B1", "NR0B2", "THRA", "THRB", "RARA", "RARB", "RARG",
          "PPARA", "PPARD", "PPARG", "NR1D1", "NR1D2", "RORA", "RORB",
@@ -38,18 +38,17 @@ NRs <- c("ESR1", "AR", "NR3C1", "NR3C2", "PGR",
 getDiffex <- function(ss,test) {
   combined <- as.matrix(data.frame(ss,test))
   
-  # if assume equal variance TRY THIS ON WHOLE DATASET TO SEE WHICH IS BETTER
-  groups <- as.factor(c(rep(0, ncol(ss)), rep(1, ncol(test))))
-  pvals <- rowttests(combined, groups)
-  # does fdr adjust on pvalues
-  padj <- p.adjust(pvals[,3],method = "fdr")
-  
-  # # if don't assume equal variances
-  # print(64+ncol(test))
-  # tStats <- fastT(combined,1:64,65:(64+ncol(test)),var.equal=FALSE)
-  # pvals <- 2*pt(-abs(tStats$z),df=ncol(combined)-2)
+  # # if assume equal variance TRY THIS ON WHOLE DATASET TO SEE WHICH IS BETTER
+  # groups <- as.factor(c(rep(0, ncol(ss)), rep(1, ncol(test))))
+  # pvals <- rowttests(combined, groups)
   # # does fdr adjust on pvalues
-  # padj <- p.adjust(pvals,method = "fdr")
+  # padj <- p.adjust(pvals[,3],method = "fdr")
+  
+  # if don't assume equal variances
+  tStats <- fastT(combined,1:ncol(data),(ncol(data)+1):(ncol(data)+ncol(test)),var.equal=FALSE)
+  pvals <- 2*pt(-abs(tStats$z),df=ncol(combined)-2)
+  # does fdr adjust on pvalues
+  padj <- p.adjust(pvals,method = "fdr")
   
   scores <- data.frame('pval' = padj)
   rownames(scores) <- rownames(ss)
@@ -181,6 +180,38 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR,useZsc) {
 }
 
 
+UpdateTargets <- function(data) {
+  
+  for (i in 1:length(NRs)) {
+    NR <- NRs[i]
+    rems <- c()
+    if (NR %in% names(allTargets)) { #if it hasnt alreay been removed...
+      tlist <- allTargets[[NR]]
+      for (j in 1:length(tlist)) {
+        probe <- tlist[j]
+        if (!(probe %in% rownames(data))) {
+          rems <- c(rems,probe)
+        }
+      }
+      
+      if (length(rems) > 0) {
+        for (j in 1:length(rems)) {
+          tlist <- tlist[tlist != rems[j]]
+        }
+      }
+      
+      asGenes <- unique(glist[tlist])
+      if (length(asGenes) < 15) {
+        allTargets[[NR]] <- NULL
+      } else {
+        allTargets[[NR]] <- tlist
+      }
+    }
+  }
+  return(allTargets)
+}
+
+
 # This is the main function
 CalcEnrich <- function(testSamples,crossProbes){
   test_sample <- testSamples
@@ -194,6 +225,9 @@ CalcEnrich <- function(testSamples,crossProbes){
     hyb <- as.list(hyb[,1])
     data <- data[!(rownames(data) %in% hyb),]
     data_av_std <- data_av_std[!(rownames(data_av_std) %in% hyb),]
+    av <- data_av_std[,1]
+    std <- data_av_std[,2]
+    allTargets <- UpdateTargets(data)
   }
   
   # compute scores for all probes (test sample versus serum-starved prior distributions)
