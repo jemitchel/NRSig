@@ -115,9 +115,10 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
     geom_line(data = boxPlotLegend, aes(x=as.factor(loc), y=vals), color='black') +
     geom_point(data = inputPlotLegend, aes(x=as.factor(loc), y=vals), color='red', size=3) +
     geom_text(data = textLegend, aes(x=as.factor(loc), y=24, label=vals)) +
+    scale_y_continuous(breaks=seq(0, 15, 3)) +
     labs(title=paste(NR, " Target Expression", sep=""), 
          subtitle = "Z-Score", x="Target Gene", y="fRMA Expression") +
-    theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = .7)) +
+    theme(plot.title = element_text(hjust = 0.5,vjust = 2,face = "bold"), plot.subtitle = element_text(hjust = .7,vjust = -1,face = "bold")) +
     theme(axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -238,8 +239,8 @@ CalcEnrich <- function(testSamples, crossProbes){
     num_completed <- num_completed + 1
     percent <- round(100*num_completed/length(allTargets))
     
-    # incProgress(amount = 1/length(allTargets),
-    #             detail = paste(percent,"% complete",""))
+    incProgress(amount = 1/length(allTargets),
+                detail = paste(percent,"% complete",""))
     
   }
   

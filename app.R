@@ -11,16 +11,24 @@ ui <- dashboardPage(
     fileInput(inputId = "files",
               label = "Upload .CEL files for one sample or a group of replicates (replicates will be averaged)",
               multiple = TRUE),
-    verbatimTextOutput("fileName"),
     actionButton(inputId = "example",
                  label = "Use Example Input"),
+    verbatimTextOutput("fileName"),
     textOutput("addLine1"),
     fileInput(inputId = "crossProbes",
-              label = "Xenograft samples only: Upload .csv of cross-hybridized probes to be removed (single column)",
+              label = "For xenograft samples only: Upload .csv of cross-hybridized probes to be removed (single column)",
               multiple = FALSE),
+    actionButton(inputId = "exampleCrossProbes",
+                 label = "Load probes crosshybridized with athymic nude mice - Hollingshead et al. study",
+                 style="white-space: normal;
+                        height:45px;
+                        width:250px;
+                        font-size: 12px;"),
     verbatimTextOutput("hybridFileName"),
     textOutput("addLine2"),
     verbatimTextOutput("errorBox"),
+    actionButton(inputId = "clear",
+                 label = "Clear All Input"),
     actionButton(inputId = "compute",
                  label = "Compute",
                  style="color: #fff; background-color: #008000; border-color: #008000"),
@@ -42,9 +50,10 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
   # increases allowable size of file uploads
-  options(shiny.maxRequestSize=30*1024^2)
+  options(shiny.maxRequestSize=35*1024^2)
 
   rv <- reactiveValues() # container for selected files
+  rv2 <- reactiveValues() # container for crosshybrid probes file
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
   finished <- reactiveVal("Results will be displayed here") 
 
@@ -62,12 +71,29 @@ server <- function(input, output, session) {
     rv$errorMessage <- NULL
     nclicks(0)
   })
+  
+  observe({
+    rv2$data <- input$crossProbes$datapath
+    rv2$name <- input$crossProbes$name
+  })
 
   observeEvent(input$example, {
     rv$data <- c("./data/example.CEL")
     rv$name <- c("example.CEL")
     rv$errorMessage <- NULL
     nclicks(0)
+  })
+  
+  observeEvent(input$exampleCrossProbes, {
+    rv2$data <- c("./data/crosshybrid.csv")
+    rv2$name <- c("./data/crosshybrid.csv")
+  })
+  
+  observeEvent(input$clear, {
+    rv$data <- NULL
+    rv$name <- NULL
+    rv2$data <- NULL
+    rv2$name <- NULL
   })
 
   output$fileName <- renderText({
@@ -93,8 +119,8 @@ server <- function(input, output, session) {
   output$hybridFileName <- renderText({
     # tmp <- "No Files Uploaded"
     tmp <- NULL
-    if (!is.null(input$crossProbes$name)) {
-      tmp <- paste("Uploaded File:\n",basename(input$crossProbes$name),"")
+    if (!is.null(rv2$name)) {
+      tmp <- paste("Uploaded File:\n",basename(rv2$name),"")
     }
     return(tmp)
   })
@@ -154,13 +180,13 @@ server <- function(input, output, session) {
                    detail = 'This may take a few minutes...')
       
       source("preprocess.R")
-      samples_matrix <- pre_proc(rv$data,rv$name,input$crossProbes$datapath)
+      samples_matrix <- pre_proc(rv$data,rv$name,rv2$data)
       progress$set(message = 'Preprocessing Completed', detail = "")
       on.exit(progress$close())
       
       withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...', value = 0,{
         source("compute_enriched_NRs.R")
-        results <- CalcEnrich(samples_matrix,input$crossProbes$datapath)
+        results <- CalcEnrich(samples_matrix,rv2$data)
         res(results)
       })
     }
@@ -183,7 +209,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     data.frame(res()[[2]],
-                      Actions = shinyInput(actionButton, 15, 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
+                      Actions = shinyInput(actionButton, nrow(res()[[2]]), 'button_', label = "See Targets", onclick = 'Shiny.onInputChange(\"select_button\",  this.id)' )
                )
   })
 
