@@ -135,7 +135,7 @@ server <- function(input, output, session) {
   
   
   # determines if there is a problem with uploaded files
-  FileError <- function(flist) {
+  celFileError <- function(flist) {
     if (is.null(flist)) {
       return("Error: Please upload files to process")
     } else {
@@ -154,12 +154,40 @@ server <- function(input, output, session) {
     return(NULL)
   }
   
+  
+  csvFileError <- function(fl) {
+    if (is.null(fl)) {
+      return(NULL)
+    } else {
+      len <- nchar(fl)
+      last4 <- substr(fl,len-3,len)
+      if (!identical(last4,".csv")) {
+        return("Error: Uploaded probe list not a .csv")
+      }
+      dimension <- ncol(read.csv(fl))
+      if (dimension > 1) {
+        return("Error: Uploaded probe list has more than 1 column. Ensure list is a single column of Affymetrix probe symbols.")
+      }
+    }
+    return(NULL)
+  }
+  
 
   res <- reactiveVal() # holds all calculation results
 
   observeEvent(input$compute, {
-    rv$errorMessage <- FileError(rv$data)
-    if (!is.null(rv$errorMessage)) {
+    # rv$errorMessage <- celFileError(rv$data)
+    # if (!is.null(rv$errorMessage)) {
+    #   return(NULL)
+    # }
+    err1 <- celFileError(rv$data)
+    err2 <- csvFileError(rv2$data)
+    
+    if (!is.null(err1)) {
+      rv$errorMessage <- err1
+      return(NULL)
+    } else if (!is.null(err2)) {
+      rv$errorMessage <- err2
       return(NULL)
     }
 
