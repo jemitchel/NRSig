@@ -200,7 +200,7 @@ server <- function(input, output, session) {
     
     if (identical(rv$name,"example.CEL")) {
       # uses precomputed results
-      tmpres <- readRDS("./data/exres.rds")
+      tmpres <- readRDS("./data/exres2.rds")
       res(tmpres)
     } else {
       progress <- Progress$new(session)

@@ -13,5 +13,6 @@ pipeline <- function(files,rem) {
 }
 
 
-# pipeline("C:/Users/jonat/Documents/Research/app test folder/c2_(HG-U133_Plus_2).CEL",NULL)
+# res <- pipeline("C:/Users/jonat/Documents/Research/app test folder/ER.CEL",NULL)
+# saveRDS(res,"C:/Users/jonat/Documents/R/NRSig-app/data/exres2.rds")
 
