@@ -40,7 +40,13 @@ ui <- dashboardPage(
   dashboardBody(
     fluidRow(
       box(title = "NRSig", width = 12, textOutput("intro")),
-      column(width = 6, DT::dataTableOutput("resTable"),textOutput("placeHolder")),
+      column(width = 6, 
+             textOutput("placeHolder"), 
+             tags$head(tags$style("#placeHolder{color: red;
+                                 font-size: 20px;
+                                  font-style: italic;
+                                  }")),
+             DT::dataTableOutput("resTable")),
       column(width = 6, plotOutput("bplots"))
     ),
     div(style = "height:5000px;")
@@ -174,12 +180,9 @@ server <- function(input, output, session) {
   
 
   res <- reactiveVal() # holds all calculation results
+  chosenPlt <- reactiveVal() # holds output z-score figure
 
   observeEvent(input$compute, {
-    # rv$errorMessage <- celFileError(rv$data)
-    # if (!is.null(rv$errorMessage)) {
-    #   return(NULL)
-    # }
     err1 <- celFileError(rv$data)
     err2 <- csvFileError(rv2$data)
     
@@ -219,7 +222,8 @@ server <- function(input, output, session) {
       })
     }
     
-    finished("")
+    # finished("")
+    finished("Enriched NR-Target Gene Sets")
   })
 
   # makes inputs for buttons on output results table
@@ -251,13 +255,13 @@ server <- function(input, output, session) {
   
 
   # chooses the correct plot depending which button is pushed
-  chosenPlt <- eventReactive(input$select_button, {
+  observeEvent(input$select_button, {
     if (is.null(res())){
       return(NULL)
     }
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
     selectedNR <- rownames(tmptbl())[selectedRow]
-    return(res()[[1]][[selectedNR]])
+    chosenPlt(res()[[1]][[selectedNR]])
   })
 
   # shows the selected table
@@ -265,9 +269,14 @@ server <- function(input, output, session) {
     if (is.null(res())){
       return(NULL)
     }
+    if (is.null(chosenPlt())) {
+      chosenPlt(res()[[1]][[1]])
+    } 
+    
     output$bplots <- renderPlot({
       chosenPlt()[[1]]
     },height = (3000/74)*chosenPlt()[[2]],width = 500)
+    
   })
 
 
