@@ -41,10 +41,10 @@ ui <- dashboardPage(
     fluidRow(
       box(title = "NRSig", width = 12, textOutput("intro")),
       column(width = 6, 
+             textOutput("tableTitle"),
              textOutput("placeHolder"), 
-             tags$head(tags$style("#placeHolder{color: red;
+             tags$head(tags$style("#tableTitle{color: blue;
                                  font-size: 20px;
-                                  font-style: italic;
                                   }")),
              DT::dataTableOutput("resTable")),
       column(width = 6, plotOutput("bplots"))
@@ -61,7 +61,8 @@ server <- function(input, output, session) {
   rv <- reactiveValues() # container for selected files
   rv2 <- reactiveValues() # container for crosshybrid probes file
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
-  finished <- reactiveVal("Results will be displayed here") 
+  status <- reactiveValues("finished"="Results will be displayed here","title"="") 
+  
 
   output$intro <- renderText({
     "This program computes differentially expressed genes between a query MCF7 microarray sample
@@ -136,7 +137,11 @@ server <- function(input, output, session) {
   })
   
   output$placeHolder <- renderText({
-    finished()
+    status$finished
+  })
+  
+  output$tableTitle <- renderText({
+    status$title
   })
   
   
@@ -223,7 +228,9 @@ server <- function(input, output, session) {
     }
     
     # finished("")
-    finished("Enriched NR-Target Gene Sets")
+    # finished("Enriched NR-Target Gene Sets")
+    status$title <- "Enriched NR-Target Gene Sets"
+    status$finished <- ""
   })
 
   # makes inputs for buttons on output results table
@@ -251,7 +258,9 @@ server <- function(input, output, session) {
       return(NULL)
     }
     tmptbl()
-  },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE)
+  },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE, 
+  options = list(pageLength = 15, dom = 't'),
+  colnames = c('NR','P Value','Adjusted P Value','Target Genes'))
   
 
   # chooses the correct plot depending which button is pushed
