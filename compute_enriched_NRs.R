@@ -239,8 +239,8 @@ CalcEnrich <- function(testSamples, crossProbes){
     num_completed <- num_completed + 1
     percent <- round(100*num_completed/length(allTargets))
     
-    # incProgress(amount = 1/length(allTargets),
-    #             detail = paste(percent,"% complete",""))
+    incProgress(amount = 1/length(allTargets),
+                detail = paste(percent,"% complete",""))
     
   }
   
