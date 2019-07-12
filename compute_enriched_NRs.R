@@ -6,22 +6,21 @@ library(ggplot2)
 # gets gene symbol annotations for all probes
 x <- hgu133plus2SYMBOL
 mapped_probes <- mappedkeys(x)
-glist <- as.list(x[mapped_probes]) #list of symbols with only probes that map to genes
+glist <- as.list(x[mapped_probes]) #list of probes mapped to genes 
 
 # opens the tf-target probe data source 
-allTargets <- fromJSON("C:/Users/jonat/Documents/R/NRSig-app/data/NR_target_probes.json", flatten=TRUE) #use this one for testing
-# allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
+allTargets <- fromJSON("./data/NR_target_probes.json", flatten=TRUE)
 
 # loads dataframe of serum starved MCF7 samples
-data <- readRDS(file = "C:/Users/jonat/Documents/R/NRSig-app/data/serum-starved.rds") #use this for testing
-# data <- readRDS(file = "./data/serum-starved.rds")
+data <- readRDS(file = "./data/serum-starved.rds")
 
 # computes mean and standard deviation for serum starved data
-data_av_std <- data.frame(Mean=rowMeans(data,na.rm=TRUE),Std=apply(data,1,sd,na.rm=TRUE))
+data_av_std <- data.frame(Mean=rowMeans(data,na.rm=TRUE),
+                          Std=apply(data,1,sd,na.rm=TRUE))
 av <- data_av_std[,1]
 std <- data_av_std[,2]
 
-# all 48 NRs (some won't be tested since have < 15 target genes listed in TTRUST)
+# all 48 NRs (some not tested since have < 15 target genes in TTRUST)
 NRs <- c("ESR1", "AR", "NR3C1", "NR3C2", "PGR",
          "NR4A1", "NR4A2", "NR4A3", "NR5A1", "NR5A2", "NR6A1",
          "NR0B1", "NR0B2", "THRA", "THRB", "RARA", "RARB", "RARG",
@@ -38,7 +37,7 @@ DiffProbes2Genes <- function(probeZ) {
   mappings <- list()
   for (i in 1:nrow(probeZ)) {
     ID <- rownames(probeZ)[i] 
-    if (ID %in% mapped_probes) { #if the probe maps to a gene symbol, continue
+    if (ID %in% mapped_probes) { # if the probe maps to a gene symbol, continue
       sym <- glist[[ID]]
       score <- probeZ[i,1]
       if (sym %in% names(zForGenes)) {
@@ -55,7 +54,7 @@ DiffProbes2Genes <- function(probeZ) {
   newz_mappings <- list()
   for (i in 1:length(zForGenes)) {
     ndxMax <- which.max(abs(zForGenes[[i]]))
-    newz[[names(zForGenes)[i]]] <- zForGenes[[i]][ndxMax] #not that this is not abs value
+    newz[[names(zForGenes)[i]]] <- zForGenes[[i]][ndxMax] 
     newz_mappings[[names(mappings)[i]]] <- mappings[[i]][ndxMax]
   }
 
@@ -86,7 +85,7 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   distrib <- as.data.frame(lapply(distrib, unlist))
   
   # preps user input data and results for plotting
-  ordered_z <- as.list(gene_z[order(abs(unlist(gene_z)),decreasing = FALSE)]) # orders the list
+  ordered_z <- as.list(gene_z[order(abs(unlist(gene_z)),decreasing = FALSE)])
   inData <- testData[unlist(mappings),,drop=FALSE]
   genelst <- glist[rownames(inData)]
   inData <- cbind(inData,unlist(genelst))
@@ -94,31 +93,41 @@ MakeBoxPlots <- function(testData,gene_z,mappings,NR) {
   inData <- cbind(inData,unlist(gene_z[as.character(inData$gene)]))
   colnames(inData)[3] <- "zsc"
   inData <- inData[match(names(ordered_z), inData$gene),]
-  inData$gene <- factor(inData$gene, levels = inData$gene) # orders the factor for plot
+  inData$gene <- factor(inData$gene, levels = inData$gene) # orders the factor
   inData$zsc <- round(inData$zsc,digits = 2)
   
   # makes data to build the legend
-  boxPlotLegend <- data.frame(c(26.5,27),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-1,2])))
+  boxPlotLegend <- data.frame(c(26.5,27),
+                              c(as.character(inData[nrow(inData)-1,2]),
+                                as.character(inData[nrow(inData)-1,2])))
   colnames(boxPlotLegend) <- c("vals","loc")
-  inputPlotLegend <- data.frame(c(26.5),c(as.character(inData[nrow(inData)-2,2])))
+  inputPlotLegend <- data.frame(c(26.5),
+                                c(as.character(inData[nrow(inData)-2,2])))
   colnames(inputPlotLegend) <- c("vals","loc")
-  textLegend <- data.frame(c("Serum-Starved","Input Sample"),c(as.character(inData[nrow(inData)-1,2]),as.character(inData[nrow(inData)-2,2])))
+  textLegend <- data.frame(c("Serum-Starved","Input Sample"),
+                           c(as.character(inData[nrow(inData)-1,2]),
+                             as.character(inData[nrow(inData)-2,2])))
   colnames(textLegend) <- c("vals","loc")
    
   # makes the plot
   p <- ggplot(data = inData, aes(x=as.factor(gene), y=expr)) +
     geom_point(color='red', size=3) +
-    geom_text(data = inData, aes(x=as.factor(gene), y=20, label=zsc), vjust=0) +
+    geom_text(data = inData, aes(x=as.factor(gene), y=20, label=zsc), 
+              vjust=0) +
     geom_boxplot(data = distrib, aes(x=as.factor(gene), y=expr), width=.3) +
-    geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red', size=3) +
+    geom_point(data = inData, aes(x=as.factor(gene), y=expr), color='red',
+               size=3) +
     coord_flip() +
-    geom_line(data = boxPlotLegend, aes(x=as.factor(loc), y=vals), color='black') +
-    geom_point(data = inputPlotLegend, aes(x=as.factor(loc), y=vals), color='red', size=3) +
+    geom_line(data = boxPlotLegend, aes(x=as.factor(loc), y=vals), 
+              color='black') +
+    geom_point(data = inputPlotLegend, aes(x=as.factor(loc), y=vals), 
+               color='red', size=3) +
     geom_text(data = textLegend, aes(x=as.factor(loc), y=24, label=vals)) +
     scale_y_continuous(breaks=seq(0, 15, 3)) +
     labs(title=paste(NR, " Target Expression", sep=""), 
          subtitle = "Z-Score", x="Target Gene", y="fRMA Expression") +
-    theme(plot.title = element_text(hjust = 0.5,vjust = 2,face = "bold"), plot.subtitle = element_text(hjust = .7,vjust = -1,face = "bold")) +
+    theme(plot.title = element_text(hjust = 0.5,vjust = 2,face = "bold"),
+          plot.subtitle = element_text(hjust = .7,vjust = -1,face = "bold")) +
     theme(axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -166,7 +175,7 @@ CalcEnrich <- function(testSamples, crossProbes){
   # keeps track of progress
   num_completed <- 0
   
-  # removes probes from ss data and target source if removed probes from input sample
+  # removes probes from ss data and target source if use xenograft data
   if (!is.null(crossProbes)) {
     hyb <- read.csv(crossProbes, stringsAsFactors = F, header = F)
     hyb <- as.list(hyb[,1])
@@ -180,7 +189,7 @@ CalcEnrich <- function(testSamples, crossProbes){
   # averages replicates if there are multiple
   test_sample <- data.frame(Mean=rowMeans(testSamples,na.rm=TRUE))
   
-  # compute zscores for all probes (test sample versus serum-starved prior distributions)
+  # compute zscores for all probes against the ss prior distributions
   zscores <- (test_sample-av)/std
   
   # creates df to store enrichment p-values
@@ -202,22 +211,20 @@ CalcEnrich <- function(testSamples, crossProbes){
     test_sample_nr <- zscores[target_probes,,drop=F]
     
     # select all other probes that are not listed as targets of the NR
-    test_sample_rest <- zscores[!row.names(zscores)%in%target_probes,,drop=F]
+    test_sample_rest <- zscores[!row.names(zscores)%in%target_probes, , drop=F]
     
     # gets differentially expressed genes from probe z scores
     nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
     nrGeneLevelZ_mappings <- nrGeneLevelZ[[2]]
     nrGeneLevelZ <- nrGeneLevelZ[[1]]
     
-    # generate boxplots of the data
-    outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
-    
     restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
     restGeneLevelZ_mappings <- restGeneLevelZ[[2]]
     restGeneLevelZ <- restGeneLevelZ[[1]]
     
-    # # generate boxplots of the data
-    # outPlot <- MakeBoxPlots(test_sample,nrGeneLevelZ,nrGeneLevelZ_mappings,NRs[d])
+    # generate boxplots of the data
+    outPlot <- MakeBoxPlots(test_sample, nrGeneLevelZ, nrGeneLevelZ_mappings,
+                            NRs[d])
     
     # figure out how many target and non-targets are dysregulated
     nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)
@@ -225,7 +232,8 @@ CalcEnrich <- function(testSamples, crossProbes){
     
     # design contingency table
     aboveThresh <- c(nrAboveThresh,restAboveThresh)
-    belowThresh <- c(length(nrGeneLevelZ)-nrAboveThresh,length(restGeneLevelZ)-restAboveThresh)
+    belowThresh <- c(length(nrGeneLevelZ) - nrAboveThresh,
+                     length(restGeneLevelZ) - restAboveThresh)
     cTable <- cbind(aboveThresh,belowThresh)
     
     # computes results
@@ -266,7 +274,7 @@ CalcEnrich <- function(testSamples, crossProbes){
   # sorts differentially expressed probes list
   zscores <- zscores[order(abs(unlist(zscores[,1])), decreasing=TRUE),]
   
-  # makes probe ID to first column and names columns (for both downloadable tablesS)
+  # makes probe ID first column and names columns for both downloadable tables
   zscores <- cbind(Row.Names = rownames(zscores), zscores)
   colnames(zscores) <- c("Probeset ID","Z-Score","Gene Symbol")
   testSamples <- cbind(Row.Names = rownames(testSamples), testSamples)
@@ -277,10 +285,5 @@ CalcEnrich <- function(testSamples, crossProbes){
 
   return(list(finNR,finPvals,zscores,testSamples))
 }
-
-
-
-
-
 
 
