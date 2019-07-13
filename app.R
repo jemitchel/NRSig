@@ -8,66 +8,85 @@ ui <- dashboardPage(
   dashboardHeader(),
   dashboardSidebar(
     width = 350,
-    fileInput(inputId = "files",
-              label = "Upload .CEL files for one sample or a group of
+    fileInput(
+      inputId = "files",
+      label = "Upload .CEL files for one sample or a group of
               replicates",
-              multiple = TRUE),
-    actionButton(inputId = "example",
-                 label = "Use Example Input"),
+      multiple = TRUE
+    ),
+    actionButton(
+      inputId = "example",
+      label = "Use Example Input"
+    ),
     verbatimTextOutput("fileName"),
     textOutput("addLine1"),
-    fileInput(inputId = "crossProbes",
-              label = "For xenograft samples only: Upload .csv of
+    fileInput(
+      inputId = "crossProbes",
+      label = "For xenograft samples only: Upload .csv of
               cross-hybridized probes to be removed (single column)",
-              multiple = FALSE),
-    actionButton(inputId = "exampleCrossProbes",
-                 label = "Load probes crosshybridized with athymic nude mice
+      multiple = FALSE
+    ),
+    actionButton(
+      inputId = "exampleCrossProbes",
+      label = "Load probes crosshybridized with athymic nude mice
                 (from Hollingshead et al. study)",
-                 style = "white-space: normal;
+      style = "white-space: normal;
                  height:45px;
                  width:250px;
-                 font-size: 12px;"),
+                 font-size: 12px;"
+    ),
     verbatimTextOutput("hybridFileName"),
     textOutput("addLine2"),
     verbatimTextOutput("errorBox"),
-    actionButton(inputId = "clear",
-                 label = "Clear All Input"),
-    actionButton(inputId = "compute",
-                 label = "Compute",
-                 style = "color: #fff; background-color: #008000;
-                 border-color: #008000"),
+    actionButton(
+      inputId = "clear",
+      label = "Clear All Input"
+    ),
+    actionButton(
+      inputId = "compute",
+      label = "Compute",
+      style = "color: #fff; background-color: #008000;
+                 border-color: #008000"
+    ),
     uiOutput("download1"),
     uiOutput("download2"),
     uiOutput("download3"),
     uiOutput("download4")
-    ),
+  ),
   dashboardBody(
     fluidRow(
       box(title = "NRSig", width = 12, textOutput("intro")),
-      column(5,
-             textOutput("tableTitle"),
-             textOutput("placeHolder"),
-             tags$head(tags$style("#tableTitle{color: blue;
+      column(
+        5,
+        textOutput("tableTitle"),
+        textOutput("placeHolder"),
+        tags$head(tags$style("#tableTitle{color: blue;
                                   font-size: 20px;
                                   }")),
-             DT::dataTableOutput("resTable")),
-      column(7,div(style = 'overflow-x: auto; height:850px;',
-                   plotOutput("bplots"))),
-    div(style = "height:1200px;"))
+        DT::dataTableOutput("resTable")
+      ),
+      column(7, div(
+        style = "overflow-x: auto; height:850px;",
+        plotOutput("bplots")
+      )),
+      div(style = "height:1200px;")
     )
+  )
 )
 
 
 server <- function(input, output, session) {
-  
+
   # increases allowable upload file size to accomodate large .cel files
-  options(shiny.maxRequestSize = 35 * 1024 ^ 2)
+  options(shiny.maxRequestSize = 35 * 1024^2)
 
   rv <- reactiveValues() # container for selected files
   rv2 <- reactiveValues() # container for crosshybrid probes file
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
-  status <- reactiveValues("finished" = "Results will be displayed here",
-                           "title" = "")
+  status <- reactiveValues(
+    "finished" = "Results will be displayed here",
+    "title" = ""
+  )
 
 
   output$intro <- renderText({
@@ -159,7 +178,7 @@ server <- function(input, output, session) {
     } else {
       for (i in 1:length(flist)) {
         len <- nchar(flist[[i]])
-        last4 <- substr(flist[[i]], len-3, len)
+        last4 <- substr(flist[[i]], len - 3, len)
         if (!identical(last4, ".CEL")) {
           return("Error: Upload includes file(s) not ending in .CEL ")
         }
@@ -179,7 +198,7 @@ server <- function(input, output, session) {
       return(NULL)
     } else {
       len <- nchar(fl)
-      last4 <- substr(fl, len-3, len)
+      last4 <- substr(fl, len - 3, len)
       if (!identical(last4, ".csv")) {
         return("Error: Uploaded probe list not a .csv")
       }
@@ -197,8 +216,7 @@ server <- function(input, output, session) {
   chosenPlt <- reactiveVal() # holds output z-score figure
 
   observeEvent(input$compute, {
-
-    if(nclicks() != 0){
+    if (nclicks() != 0) {
       return(NULL)
     }
 
@@ -206,16 +224,15 @@ server <- function(input, output, session) {
     nclicks(nclicks() + 1)
 
     if (identical(rv$data, "precomputed")) {
-      #uses precomputed results
+      # uses precomputed results
       rv$data <- readRDS("./data/exres.rds")
       res(rv$data)
-      
     } else {
-      
+
       # checks for file errors
       err1 <- celFileError(rv$data)
       err2 <- csvFileError(rv2$data)
-      
+
       if (!is.null(err1)) {
         rv$errorMessage <- err1
         return(NULL)
@@ -223,22 +240,26 @@ server <- function(input, output, session) {
         rv$errorMessage <- err2
         return(NULL)
       }
-      
+
       progress <- Progress$new(session)
-      progress$set(message = 'Preprocessing',
-                   detail = 'This may take a few minutes...')
+      progress$set(
+        message = "Preprocessing",
+        detail = "This may take a few minutes..."
+      )
 
       source("preprocess.R")
       samples_matrix <- pre_proc(rv$data, rv$name, rv2$data)
-      progress$set(message = 'Preprocessing Completed', detail = "")
+      progress$set(message = "Preprocessing Completed", detail = "")
       on.exit(progress$close())
 
-      withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...',
-                   value = 0,{
-        source("compute_enriched_NRs.R")
-        results <- CalcEnrich(samples_matrix, rv2$data)
-        res(results)
-      })
+      withProgress(
+        message = "Computing Enrichment of NR-Target Gene Sets...",
+        value = 0, {
+          source("compute_enriched_NRs.R")
+          results <- CalcEnrich(samples_matrix, rv2$data)
+          res(results)
+        }
+      )
     }
 
     status$title <- "Enriched NR-Target Gene Sets"
@@ -256,33 +277,36 @@ server <- function(input, output, session) {
 
   # produces the results dataframe with column of buttons
   tmptbl <- reactive({
-    if (is.null(res())){
+    if (is.null(res())) {
       return(NULL)
     }
     tbl <- res()[[2]]
     tbl[, 2:3] <- round(as.numeric(tbl[, 2:3]), 4)
     data.frame(tbl,
-               Actions = shinyInput(actionButton, nrow(res()[[2]]), 'button_',
-                                    label = "See Targets",
-                                    onclick = 'Shiny.onInputChange(
-                                    \"select_button\",  this.id)' )
+      Actions = shinyInput(actionButton, nrow(res()[[2]]), "button_",
+        label = "See Targets",
+        onclick = 'Shiny.onInputChange(
+                                    \"select_button\",  this.id)'
+      )
     )
   })
 
   # renders the results dataframe with column of buttons
   output$resTable <- DT::renderDataTable({
-    if (is.null(res())){
+    if (is.null(res())) {
       return(NULL)
     }
     tmptbl()
-  },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE,
-  options = list(pageLength = 15, dom = 't'),
-  colnames = c('NR', 'P Value', 'Adjusted P Value', 'Target Genes'))
+  },
+  server = FALSE, escape = FALSE, selection = "none", rownames = FALSE,
+  options = list(pageLength = 15, dom = "t"),
+  colnames = c("NR", "P Value", "Adjusted P Value", "Target Genes")
+  )
 
 
   # chooses the correct plot depending which button is pushed
   observeEvent(input$select_button, {
-    if (is.null(res())){
+    if (is.null(res())) {
       return(NULL)
     }
     selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
@@ -292,7 +316,7 @@ server <- function(input, output, session) {
 
   # shows the selected table
   observe({
-    if (is.null(res())){
+    if (is.null(res())) {
       return(NULL)
     }
     if (is.null(chosenPlt())) {
@@ -301,147 +325,92 @@ server <- function(input, output, session) {
 
     output$bplots <- renderPlot({
       chosenPlt()[[1]]
-    },height = (3000 / 74) * chosenPlt()[[2]], width = 500)
-
+    }, height = (3000 / 74) * chosenPlt()[[2]], width = 500)
   })
 
 
   # download buttons and handlers
   output$download1 <- renderUI({
-    if(!is.null(res())) {
-      downloadButton('downloadfRMA', label = "fRMA Preprocessed Input",
-                     style = "color: #fff; background-color: #A9A9A9; 
-                     border-color: #A9A9A9")
+    if (!is.null(res())) {
+      downloadButton("downloadfRMA",
+        label = "fRMA Preprocessed Input",
+        style = "color: #fff; background-color: #A9A9A9; 
+                     border-color: #A9A9A9"
+      )
     }
   })
 
   output$download2 <- renderUI({
-    if(!is.null(res())) {
-      downloadButton('downloadDiffex', 
-                     label = "Differential Expression Results",
-                     style = "color: #fff; background-color: #A9A9A9;
-                     border-color: #A9A9A9")
+    if (!is.null(res())) {
+      downloadButton("downloadDiffex",
+        label = "Differential Expression Results",
+        style = "color: #fff; background-color: #A9A9A9;
+                     border-color: #A9A9A9"
+      )
     }
   })
 
   output$download3 <- renderUI({
-    if(!is.null(res())) {
-      downloadButton('downloadEnrich', label = "Enrichment Results",
-                     style = "color: #fff; background-color: #A9A9A9; 
-                     border-color: #A9A9A9")
+    if (!is.null(res())) {
+      downloadButton("downloadEnrich",
+        label = "Enrichment Results",
+        style = "color: #fff; background-color: #A9A9A9; 
+                     border-color: #A9A9A9"
+      )
     }
   })
 
   output$download4 <- renderUI({
-    if(!is.null(chosenPlt())) {
-      downloadButton('downloadPlot', label = "Boxplot Figure",
-                     style = "color: #fff; background-color: #A9A9A9; 
-                     border-color: #A9A9A9")
+    if (!is.null(chosenPlt())) {
+      downloadButton("downloadPlot",
+        label = "Boxplot Figure",
+        style = "color: #fff; background-color: #A9A9A9; 
+                     border-color: #A9A9A9"
+      )
     }
   })
 
   output$downloadfRMA <- downloadHandler(
-    filename = function() { paste('input_preprocessed', '.csv', sep = '') },
+    filename = function() {
+      paste("input_preprocessed", ".csv", sep = "")
+    },
     content = function(file) {
       write.csv(res()[[4]], file, row.names = FALSE)
     }
   )
 
   output$downloadDiffex <- downloadHandler(
-    filename = function() { paste('diff_exprs', '.csv', sep = '') },
+    filename = function() {
+      paste("diff_exprs", ".csv", sep = "")
+    },
     content = function(file) {
       write.csv(res()[[3]], file, row.names = FALSE)
     }
   )
 
   output$downloadEnrich <- downloadHandler(
-    filename = function() { paste('enriched', '.csv', sep = '') },
+    filename = function() {
+      paste("enriched", ".csv", sep = "")
+    },
     content = function(file) {
       write.csv(res()[[2]], file, row.names = FALSE)
     }
   )
 
   output$downloadPlot <- downloadHandler(
-    filename = function() { paste(chosenPlt()[[1]]$labels$title, '.png', 
-                                  sep = '') },
+    filename = function() {
+      paste(chosenPlt()[[1]]$labels$title, ".png",
+        sep = ""
+      )
+    },
     content = function(file) {
-      ggsave(file, plot = chosenPlt()[[1]], device = "png",
-             height = (45 / 74) * chosenPlt()[[2]], width = 6.75, 
-             limitsize = FALSE)
+      ggsave(file,
+        plot = chosenPlt()[[1]], device = "png",
+        height = (45 / 74) * chosenPlt()[[2]], width = 6.75,
+        limitsize = FALSE
+      )
     }
   )
-
-  }
+}
 
 shinyApp(ui, server)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
