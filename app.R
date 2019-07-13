@@ -23,7 +23,7 @@ ui <- dashboardPage(
     actionButton(inputId = "exampleCrossProbes",
                  label = "Load probes crosshybridized with athymic nude mice
                 (from Hollingshead et al. study)",
-                 style="white-space: normal;
+                 style = "white-space: normal;
                  height:45px;
                  width:250px;
                  font-size: 12px;"),
@@ -34,7 +34,7 @@ ui <- dashboardPage(
                  label = "Clear All Input"),
     actionButton(inputId = "compute",
                  label = "Compute",
-                 style="color: #fff; background-color: #008000;
+                 style = "color: #fff; background-color: #008000;
                  border-color: #008000"),
     uiOutput("download1"),
     uiOutput("download2"),
@@ -59,14 +59,15 @@ ui <- dashboardPage(
 
 
 server <- function(input, output, session) {
+  
   # increases allowable upload file size to accomodate large .cel files
-  options(shiny.maxRequestSize=35*1024^2)
+  options(shiny.maxRequestSize = 35 * 1024 ^ 2)
 
   rv <- reactiveValues() # container for selected files
   rv2 <- reactiveValues() # container for crosshybrid probes file
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
-  status <- reactiveValues("finished"="Results will be displayed here",
-                           "title"="")
+  status <- reactiveValues("finished" = "Results will be displayed here",
+                           "title" = "")
 
 
   output$intro <- renderText({
@@ -116,7 +117,7 @@ server <- function(input, output, session) {
     if (!is.null(rv$name)) {
       tmp <- "Uploaded Files:\n"
       for (i in basename(rv$name)) {
-        tmp <- paste(tmp,i,"\n")
+        tmp <- paste(tmp, i, "\n")
       }
     }
     return(tmp)
@@ -131,10 +132,9 @@ server <- function(input, output, session) {
   })
 
   output$hybridFileName <- renderText({
-    # tmp <- "No Files Uploaded"
     tmp <- NULL
     if (!is.null(rv2$name)) {
-      tmp <- paste("Uploaded File:\n",basename(rv2$name),"")
+      tmp <- paste("Uploaded File:\n", basename(rv2$name), "")
     }
     return(tmp)
   })
@@ -159,12 +159,12 @@ server <- function(input, output, session) {
     } else {
       for (i in 1:length(flist)) {
         len <- nchar(flist[[i]])
-        last4 <- substr(flist[[i]],len-3,len)
-        if (!identical(last4,".CEL")) {
+        last4 <- substr(flist[[i]], len-3, len)
+        if (!identical(last4, ".CEL")) {
           return("Error: Upload includes file(s) not ending in .CEL ")
         }
         cdfName <- whatcdf(flist[[i]])
-        if (!identical(cdfName,"HG-U133_Plus_2")) {
+        if (!identical(cdfName, "HG-U133_Plus_2")) {
           return("Error: Input file(s) are for wrong platform. Use CEL files
                  for HG-U133_Plus_2 only.")
         }
@@ -179,8 +179,8 @@ server <- function(input, output, session) {
       return(NULL)
     } else {
       len <- nchar(fl)
-      last4 <- substr(fl,len-3,len)
-      if (!identical(last4,".csv")) {
+      last4 <- substr(fl, len-3, len)
+      if (!identical(last4, ".csv")) {
         return("Error: Uploaded probe list not a .csv")
       }
       dimension <- ncol(read.csv(fl))
@@ -205,7 +205,7 @@ server <- function(input, output, session) {
     # Increment clicks and prevent concurrent analyses
     nclicks(nclicks() + 1)
 
-    if (identical(rv$data,"precomputed")) {
+    if (identical(rv$data, "precomputed")) {
       #uses precomputed results
       rv$data <- readRDS("./data/exres.rds")
       res(rv$data)
@@ -229,14 +229,14 @@ server <- function(input, output, session) {
                    detail = 'This may take a few minutes...')
 
       source("preprocess.R")
-      samples_matrix <- pre_proc(rv$data,rv$name,rv2$data)
+      samples_matrix <- pre_proc(rv$data, rv$name, rv2$data)
       progress$set(message = 'Preprocessing Completed', detail = "")
       on.exit(progress$close())
 
       withProgress(message = 'Computing Enrichment of NR-Target Gene Sets...',
                    value = 0,{
         source("compute_enriched_NRs.R")
-        results <- CalcEnrich(samples_matrix,rv2$data)
+        results <- CalcEnrich(samples_matrix, rv2$data)
         res(results)
       })
     }
@@ -251,7 +251,7 @@ server <- function(input, output, session) {
     for (i in seq_len(len)) {
       inputs[i] <- as.character(FUN(paste0(id, i), ...))
     }
-    inputs
+    return(inputs)
   }
 
   # produces the results dataframe with column of buttons
@@ -260,7 +260,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     tbl <- res()[[2]]
-    tbl[,2:3] <- round(as.numeric(tbl[,2:3]),4)
+    tbl[, 2:3] <- round(as.numeric(tbl[, 2:3]), 4)
     data.frame(tbl,
                Actions = shinyInput(actionButton, nrow(res()[[2]]), 'button_',
                                     label = "See Targets",
@@ -277,7 +277,7 @@ server <- function(input, output, session) {
     tmptbl()
   },server = FALSE, escape = FALSE, selection = 'none', rownames = FALSE,
   options = list(pageLength = 15, dom = 't'),
-  colnames = c('NR','P Value','Adjusted P Value','Target Genes'))
+  colnames = c('NR', 'P Value', 'Adjusted P Value', 'Target Genes'))
 
 
   # chooses the correct plot depending which button is pushed
@@ -301,7 +301,7 @@ server <- function(input, output, session) {
 
     output$bplots <- renderPlot({
       chosenPlt()[[1]]
-    },height = (3000/74)*chosenPlt()[[2]],width = 500)
+    },height = (3000 / 74) * chosenPlt()[[2]], width = 500)
 
   })
 
@@ -310,7 +310,7 @@ server <- function(input, output, session) {
   output$download1 <- renderUI({
     if(!is.null(res())) {
       downloadButton('downloadfRMA', label = "fRMA Preprocessed Input",
-                     style="color: #fff; background-color: #A9A9A9; 
+                     style = "color: #fff; background-color: #A9A9A9; 
                      border-color: #A9A9A9")
     }
   })
@@ -319,7 +319,7 @@ server <- function(input, output, session) {
     if(!is.null(res())) {
       downloadButton('downloadDiffex', 
                      label = "Differential Expression Results",
-                     style="color: #fff; background-color: #A9A9A9;
+                     style = "color: #fff; background-color: #A9A9A9;
                      border-color: #A9A9A9")
     }
   })
@@ -327,7 +327,7 @@ server <- function(input, output, session) {
   output$download3 <- renderUI({
     if(!is.null(res())) {
       downloadButton('downloadEnrich', label = "Enrichment Results",
-                     style="color: #fff; background-color: #A9A9A9; 
+                     style = "color: #fff; background-color: #A9A9A9; 
                      border-color: #A9A9A9")
     }
   })
@@ -335,27 +335,27 @@ server <- function(input, output, session) {
   output$download4 <- renderUI({
     if(!is.null(chosenPlt())) {
       downloadButton('downloadPlot', label = "Boxplot Figure",
-                     style="color: #fff; background-color: #A9A9A9; 
+                     style = "color: #fff; background-color: #A9A9A9; 
                      border-color: #A9A9A9")
     }
   })
 
   output$downloadfRMA <- downloadHandler(
-    filename = function() { paste('input_preprocessed', '.csv', sep='') },
+    filename = function() { paste('input_preprocessed', '.csv', sep = '') },
     content = function(file) {
       write.csv(res()[[4]], file, row.names = FALSE)
     }
   )
 
   output$downloadDiffex <- downloadHandler(
-    filename = function() { paste('diff_exprs', '.csv', sep='') },
+    filename = function() { paste('diff_exprs', '.csv', sep = '') },
     content = function(file) {
       write.csv(res()[[3]], file, row.names = FALSE)
     }
   )
 
   output$downloadEnrich <- downloadHandler(
-    filename = function() { paste('enriched', '.csv', sep='') },
+    filename = function() { paste('enriched', '.csv', sep = '') },
     content = function(file) {
       write.csv(res()[[2]], file, row.names = FALSE)
     }
@@ -363,10 +363,11 @@ server <- function(input, output, session) {
 
   output$downloadPlot <- downloadHandler(
     filename = function() { paste(chosenPlt()[[1]]$labels$title, '.png', 
-                                  sep='') },
+                                  sep = '') },
     content = function(file) {
       ggsave(file, plot = chosenPlt()[[1]], device = "png",
-             height = (45/74)*chosenPlt()[[2]], width = 6.75,limitsize = FALSE)
+             height = (45 / 74) * chosenPlt()[[2]], width = 6.75, 
+             limitsize = FALSE)
     }
   )
 
