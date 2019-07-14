@@ -35,7 +35,16 @@ NRs <- c(
 )
 
 
-# This function converts z scores from probe level -> gene level
+#' DiffProbes2Genes
+#'
+#' Converts z scores from probe level -> gene level
+#'
+#' @param z_probe a dataframe of z scores for probes of either the current NR
+#'  target or all other probes
+#' @return 2 element list:
+#' (1) list of max z scores for all represented genes and 
+#' (2) list of probe that gave max z score of each gene
+#'
 DiffProbes2Genes <- function(z_probe) {
   z_genes <- list()
   mappings <- list()
@@ -65,7 +74,13 @@ DiffProbes2Genes <- function(z_probe) {
   return(list(newz, newz_mappings))
 }
 
-# This function counts number of genes that are above the z-score threshold
+#' GetNumAboveThreshold
+#'
+#' This function counts number of genes that are above a z-score threshold of 2
+#'
+#' @param zscores list of gene level z scores for either the itaration's
+#'  NR targets or background
+#' @return the number of genes with absolute value z score larger than 2
 GetNumAboveThreshold <- function(zscores) {
   count <- 0
   thresh <- 2 # this is the zscore threshold
@@ -77,6 +92,17 @@ GetNumAboveThreshold <- function(zscores) {
   return(count)
 }
 
+#' MakeBoxPlots
+#'
+#' Produces a figure of boxplots for distributions for all NR target
+#' serum starved expression levels as well as the input's gene levels
+#'
+#' @param test_data dataframe of replicate averaged preprocessed input
+#' @param gene_z list of max z scores for each target gene
+#' @param mappings list of affy probes corresponding to each target gene
+#' @param NR character of the current NR being analyzed
+#' @return a ggplot object of the figure
+#' 
 MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
 
   # preps serum-starved data for plotting
@@ -174,6 +200,15 @@ MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
   return(p)
 }
 
+#' UpdateTargets
+#'
+#' Modifies the list of NR target gene probes if the user has opted to remove
+#' certain probes from the analysis (for example if they identified 
+#' cross-hybridized probes in a xenograft study)
+#'
+#' @param data the dataframe of serum starved MCF7 gene expression
+#' @return an updated list of NR target gene probes
+#' 
 UpdateTargets <- function(data) {
   for (i in 1:length(NRs)) {
     NR <- NRs[i]
@@ -205,15 +240,28 @@ UpdateTargets <- function(data) {
 }
 
 
-# This is the main function
-CalcEnrich <- function(testSamples, crossProbes) {
+#' CalcEnrich
+#'
+#' This is the main function for data processing. It calculates differentially
+#' expressed probes and NR enrichment by hypergeometric test. Also corrects P
+#' values for multiple comparisons.
+#'
+#' @param test_samples dataframe of preprocessed input data
+#' @param cross_probes dataframe of probes to remove (NULL if none)
+#' @return 4 element list:
+#' (1) list of list of NR target expression plots with number of targets
+#' (2) dataframe of p values for overrepresentation of NR target sets
+#' (3) dataframe of differential expression z scores
+#' (4) dataframe of the preprocessed input used for calculations
+#' 
+CalcEnrich <- function(test_samples, cross_probes) {
 
   # keeps track of progress
   num_completed <- 0
 
   # removes probes from ss data and target source if use xenograft data
-  if (!is.null(crossProbes)) {
-    hyb <- read.csv(crossProbes, stringsAsFactors = FALSE, header = FALSE)
+  if (!is.null(cross_probes)) {
+    hyb <- read.csv(cross_probes, stringsAsFactors = FALSE, header = FALSE)
     hyb <- as.list(hyb[, 1])
     data <- data[!(rownames(data) %in% hyb), ]
     data_av_std <- data_av_std[!(rownames(data_av_std) %in% hyb), ]
@@ -223,7 +271,7 @@ CalcEnrich <- function(testSamples, crossProbes) {
   }
 
   # averages replicates if there are multiple
-  test_sample <- data.frame(Mean = rowMeans(testSamples, na.rm = TRUE))
+  test_sample <- data.frame(Mean = rowMeans(test_samples, na.rm = TRUE))
 
   # compute zscores for all probes against the ss prior distributions
   zscores <- (test_sample - av) / std
@@ -232,7 +280,7 @@ CalcEnrich <- function(testSamples, crossProbes) {
   final_p_vals <- data.frame(matrix(ncol = length(NRs), nrow = 1))
   colnames(final_p_vals) <- NRs
 
-  finNR <- list() # holds z-scores for target genes of each NR
+  NR_plots <- list() # holds z-scores for target genes of each NR
 
   for (d in 1:length(NRs)) { # for each nuclear receptor...
 
@@ -244,45 +292,45 @@ CalcEnrich <- function(testSamples, crossProbes) {
     }
 
     # select just the probes that are targets of the current NR being evaluated
-    test_sample_nr <- zscores[target_probes, , drop = FALSE]
+    targ_z_probe <- zscores[target_probes, , drop = FALSE]
 
     # select all other probes that are not listed as targets of the NR
-    test_sample_rest <- zscores[!row.names(zscores) %in% target_probes, ,
+    rest_z_probe <- zscores[!row.names(zscores) %in% target_probes, ,
       drop = FALSE
     ]
 
     # gets differentially expressed genes from probe z scores
-    nrGeneLevelZ <- DiffProbes2Genes(test_sample_nr)
-    nrGeneLevelZ_mappings <- nrGeneLevelZ[[2]]
-    nrGeneLevelZ <- nrGeneLevelZ[[1]]
+    targ_z_gene <- DiffProbes2Genes(targ_z_probe)
+    targ_z_gene_mappings <- targ_z_gene[[2]]
+    targ_z_gene <- targ_z_gene[[1]]
 
-    restGeneLevelZ <- DiffProbes2Genes(test_sample_rest)
-    restGeneLevelZ_mappings <- restGeneLevelZ[[2]]
-    restGeneLevelZ <- restGeneLevelZ[[1]]
+    rest_z_gene <- DiffProbes2Genes(rest_z_probe)
+    rest_z_gene_mappings <- rest_z_gene[[2]]
+    rest_z_gene <- rest_z_gene[[1]]
 
     # generate boxplots of the data
-    outPlot <- MakeBoxPlots(
-      test_sample, nrGeneLevelZ, nrGeneLevelZ_mappings,
+    out_plot <- MakeBoxPlots(
+      test_sample, targ_z_gene, targ_z_gene_mappings,
       NRs[d]
     )
 
     # figure out how many target and non-targets are dysregulated
-    nrAboveThresh <- GetNumAboveThreshold(nrGeneLevelZ)
-    restAboveThresh <- GetNumAboveThreshold(restGeneLevelZ)
+    targ_above_thresh <- GetNumAboveThreshold(targ_z_gene)
+    rest_above_thresh <- GetNumAboveThreshold(rest_z_gene)
 
     # design contingency table
-    aboveThresh <- c(nrAboveThresh, restAboveThresh)
-    belowThresh <- c(
-      length(nrGeneLevelZ) - nrAboveThresh,
-      length(restGeneLevelZ) - restAboveThresh
+    above_thresh <- c(targ_above_thresh, rest_above_thresh)
+    below_thresh <- c(
+      length(targ_z_gene) - targ_above_thresh,
+      length(rest_z_gene) - rest_above_thresh
     )
-    cTable <- cbind(aboveThresh, belowThresh)
+    c_table <- cbind(above_thresh, below_thresh)
 
     # computes results
-    result <- fisher.test(cTable, alternative = "greater")
+    result <- fisher.test(c_table, alternative = "greater")
     print(NRs[d])
     print(result[["p.value"]])
-    finNR[[NRs[d]]] <- list(outPlot, length(nrGeneLevelZ))
+    NR_plots[[NRs[d]]] <- list(out_plot, length(targ_z_gene))
     final_p_vals[1, NRs[d]] <- result[["p.value"]]
 
     # calculates percentage complete
@@ -305,7 +353,7 @@ CalcEnrich <- function(testSamples, crossProbes) {
   # transposes and sorts dataframe
   final_p_vals <- t(final_p_vals)
   final_p_vals <- final_p_vals[order(final_p_vals[, 2]), ]
-  finNR <- as.list(finNR[order(final_p_vals[, 2])]) # orders the list of plots
+  NR_plots <- as.list(NR_plots[order(final_p_vals[, 2])]) # orders the list of plots
   # makes rownames into first column
   final_p_vals <- cbind(Row.Names = rownames(final_p_vals), final_p_vals)
   colnames(final_p_vals) <- c("NR", "raw p-value", "adj p-value")
@@ -320,8 +368,8 @@ CalcEnrich <- function(testSamples, crossProbes) {
   # makes probe ID first column and names columns for both downloadable tables
   zscores <- cbind(Row.Names = rownames(zscores), zscores)
   colnames(zscores) <- c("Probeset ID", "Z-Score", "Gene Symbol")
-  testSamples <- cbind(Row.Names = rownames(testSamples), testSamples)
-  colnames(testSamples)[1] <- c("Probeset ID")
+  test_samples <- cbind(Row.Names = rownames(test_samples), test_samples)
+  colnames(test_samples)[1] <- c("Probeset ID")
 
-  return(list(finNR, final_p_vals, zscores, testSamples))
+  return(list(NR_plots, final_p_vals, zscores, test_samples))
 }

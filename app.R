@@ -4,6 +4,11 @@ library(shinydashboard)
 library(affy)
 library(ggplot2)
 
+source("preprocess.R")
+source("compute_enriched_NRs.R")
+source("file_error_handling.R")
+
+
 ui <- dashboardPage(
   dashboardHeader(),
   dashboardSidebar(
@@ -77,12 +82,14 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
 
-  # increases allowable upload file size to accomodate large .cel files
+  # Increases allowable upload file size to accomodate large .cel files
   options(shiny.maxRequestSize = 35 * 1024^2)
 
-  rv_cel <- reactiveValues() # container for selected files
-  rv_cross <- reactiveValues() # container for crosshybrid probes file
-  nclicks <- reactiveVal(0) # reactive number times compute is clicked
+  rv_cel <- reactiveValues() # Holds input files
+  rv_cross <- reactiveValues() # Holds crosshybridized probes file
+  res <- reactiveVal() # Holds calculation results
+  chosen_plt <- reactiveVal() # Holds output z-score figure
+  nclicks <- reactiveVal(0) # Number times compute is clicked
   status <- reactiveValues(
     "finished" = "Results will be displayed here",
     "title" = "",
@@ -132,15 +139,14 @@ server <- function(input, output, session) {
   })
 
   output$cel_file_name <- renderText({
-    # tmp <- "No Files Uploaded"
-    tmp <- NULL
+    txt <- NULL
     if (!is.null(rv_cel$name)) {
-      tmp <- "Uploaded Files:\n"
+      txt <- "Uploaded Files:\n"
       for (i in basename(rv_cel$name)) {
-        tmp <- paste(tmp, i, "\n")
+        txt <- paste(txt, i, "\n")
       }
     }
-    return(tmp)
+    return(txt)
   })
 
   output$error_box <- renderText({
@@ -152,11 +158,11 @@ server <- function(input, output, session) {
   })
 
   output$hybrid_file_name <- renderText({
-    tmp <- NULL
+    txt <- NULL
     if (!is.null(rv_cross$name)) {
-      tmp <- paste("Uploaded File:\n", basename(rv_cross$name), "")
+      txt <- paste("Uploaded File:\n", basename(rv_cross$name), "")
     }
-    return(tmp)
+    return(txt)
   })
 
   output$add_line_2 <- renderText({
@@ -172,50 +178,6 @@ server <- function(input, output, session) {
   })
 
 
-  # determines if there is a problem with uploaded files
-  celFileError <- function(flist) {
-    if (is.null(flist)) {
-      return("Error: Please upload files to process")
-    } else {
-      for (i in 1:length(flist)) {
-        len <- nchar(flist[[i]])
-        last4 <- substr(flist[[i]], len - 3, len)
-        if (!identical(last4, ".CEL")) {
-          return("Error: Upload includes file(s) not ending in .CEL ")
-        }
-        cdfName <- whatcdf(flist[[i]])
-        if (!identical(cdfName, "HG-U133_Plus_2")) {
-          return("Error: Input file(s) are for wrong platform. Use CEL files
-                 for HG-U133_Plus_2 only.")
-        }
-      }
-    }
-    return(NULL)
-  }
-
-
-  csvFileError <- function(fl) {
-    if (is.null(fl)) {
-      return(NULL)
-    } else {
-      len <- nchar(fl)
-      last4 <- substr(fl, len - 3, len)
-      if (!identical(last4, ".csv")) {
-        return("Error: Uploaded probe list not a .csv")
-      }
-      dimension <- ncol(read.csv(fl))
-      if (dimension > 1) {
-        return("Error: Uploaded probe list has more than 1 column. Ensure list
-               is a single column of Affymetrix probe symbols.")
-      }
-    }
-    return(NULL)
-  }
-
-
-  res <- reactiveVal() # holds all calculation results
-  chosen_plt <- reactiveVal() # holds output z-score figure
-
   observeEvent(input$compute, {
     if (nclicks() != 0) {
       return(NULL)
@@ -225,12 +187,12 @@ server <- function(input, output, session) {
     nclicks(nclicks() + 1)
 
     if (identical(rv_cel$data, "precomputed")) {
-      # uses precomputed results
+      # Uses precomputed results
       rv_cel$data <- readRDS("./data/exres.rds")
       res(rv_cel$data)
     } else {
 
-      # checks for file errors
+      # Checks for file errors
       err1 <- celFileError(rv_cel$data)
       err2 <- csvFileError(rv_cross$data)
 
@@ -248,7 +210,6 @@ server <- function(input, output, session) {
         detail = "This may take a few minutes..."
       )
 
-      source("preprocess.R")
       samples_matrix <- pre_proc(rv_cel$data, rv_cel$name, rv_cross$data)
       progress$set(message = "Preprocessing Completed", detail = "")
       on.exit(progress$close())
@@ -256,7 +217,6 @@ server <- function(input, output, session) {
       withProgress(
         message = "Computing Enrichment of NR-Target Gene Sets...",
         value = 0, {
-          source("compute_enriched_NRs.R")
           results <- CalcEnrich(samples_matrix, rv_cross$data)
           res(results)
         }
@@ -267,7 +227,7 @@ server <- function(input, output, session) {
     status$finished <- ""
   })
 
-  # makes inputs for buttons on output results table
+  # Makes inputs for buttons on output results table
   shinyInput <- function(FUN, len, id, ...) {
     inputs <- character(len)
     for (i in seq_len(len)) {
@@ -276,7 +236,7 @@ server <- function(input, output, session) {
     return(inputs)
   }
 
-  # produces the results dataframe with column of buttons
+  # Produces the results dataframe with a column of buttons
   tmptbl <- reactive({
     if (is.null(res())) {
       return(NULL)
@@ -292,7 +252,7 @@ server <- function(input, output, session) {
     )
   })
 
-  # renders the results dataframe with column of buttons
+  # Renders the results dataframe
   output$res_table <- DT::renderDataTable({
     if (is.null(res())) {
       return(NULL)
@@ -304,8 +264,7 @@ server <- function(input, output, session) {
   colnames = c("NR", "P Value", "Adjusted P Value", "Target Genes")
   )
 
-
-  # chooses the correct plot depending which button is pushed
+  # Chooses the correct plot depending on which button is pushed
   observeEvent(input$select_button, {
     if (is.null(res())) {
       return(NULL)
@@ -315,7 +274,7 @@ server <- function(input, output, session) {
     chosen_plt(res()[[1]][[selected_NR]])
   })
 
-  # shows the selected table
+  # Shows the selected plot
   observe({
     if (is.null(res())) {
       return(NULL)
@@ -330,10 +289,10 @@ server <- function(input, output, session) {
   })
 
 
-  # download buttons and handlers
+  # Download buttons and handlers
   output$download1 <- renderUI({
     if (!is.null(res())) {
-      downloadButton("downloadfRMA",
+      downloadButton("download_fRMA",
         label = "fRMA Preprocessed Input",
         style = "color: #fff; background-color: #A9A9A9; 
                      border-color: #A9A9A9"
@@ -343,7 +302,7 @@ server <- function(input, output, session) {
 
   output$download2 <- renderUI({
     if (!is.null(res())) {
-      downloadButton("downloadDiffex",
+      downloadButton("download_diffex",
         label = "Differential Expression Results",
         style = "color: #fff; background-color: #A9A9A9;
                      border-color: #A9A9A9"
@@ -353,7 +312,7 @@ server <- function(input, output, session) {
 
   output$download3 <- renderUI({
     if (!is.null(res())) {
-      downloadButton("downloadEnrich",
+      downloadButton("download_enrich",
         label = "Enrichment Results",
         style = "color: #fff; background-color: #A9A9A9; 
                      border-color: #A9A9A9"
@@ -371,7 +330,7 @@ server <- function(input, output, session) {
     }
   })
 
-  output$downloadfRMA <- downloadHandler(
+  output$download_fRMA <- downloadHandler(
     filename = function() {
       paste("input_preprocessed", ".csv", sep = "")
     },
@@ -380,7 +339,7 @@ server <- function(input, output, session) {
     }
   )
 
-  output$downloadDiffex <- downloadHandler(
+  output$download_diffex <- downloadHandler(
     filename = function() {
       paste("diff_exprs", ".csv", sep = "")
     },
@@ -389,7 +348,7 @@ server <- function(input, output, session) {
     }
   )
 
-  output$downloadEnrich <- downloadHandler(
+  output$download_enrich <- downloadHandler(
     filename = function() {
       paste("enriched", ".csv", sep = "")
     },
