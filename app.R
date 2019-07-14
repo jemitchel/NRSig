@@ -210,7 +210,7 @@ server <- function(input, output, session) {
         detail = "This may take a few minutes..."
       )
 
-      samples_matrix <- pre_proc(rv_cel$data, rv_cel$name, rv_cross$data)
+      samples_matrix <- Preprocess(rv_cel$data, rv_cel$name, rv_cross$data)
       progress$set(message = "Preprocessing Completed", detail = "")
       on.exit(progress$close())
 

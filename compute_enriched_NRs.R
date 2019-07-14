@@ -3,7 +3,7 @@ library(jsonlite)
 library("hgu133plus2.db")
 library(ggplot2)
 
-# gets gene symbol annotations for all probes
+# Loads gene symbol annotations for all Affy probes
 x <- hgu133plus2SYMBOL
 mapped_probes <- mappedkeys(x)
 glist <- as.list(x[mapped_probes]) # list of probes mapped to genes
@@ -99,7 +99,7 @@ GetNumAboveThreshold <- function(zscores) {
 #'
 #' @param test_data dataframe of replicate averaged preprocessed input
 #' @param gene_z list of max z scores for each target gene
-#' @param mappings list of affy probes corresponding to each target gene
+#' @param mappings list of Affy probes corresponding to each target gene
 #' @param NR character of the current NR being analyzed
 #' @return a ggplot object of the figure
 #' 

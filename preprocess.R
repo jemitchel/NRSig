@@ -1,9 +1,16 @@
 library(affy)
 library(frma)
 
-# NEED TO ADD IN A QC CHECK AND ERROR IF GIVEN BAD ARRAY
-
-pre_proc <- function(direcs, file_names, cross_probes) {
+#' Preprocess
+#'
+#' Applies fRMA preprocessing to input cel files
+#'
+#' @param direcs the directories or datapaths of cel files
+#' @param file_names the names of the cel files
+#' @param cross_probes the datapath for csv file of probes to remove
+#' @return dataframe of fRMA preprocessed data (all samples)
+#'
+Preprocess <- function(direcs, file_names, cross_probes) {
   batch <- ReadAffy(filenames = direcs)
   eset <- exprs(frma(batch))
   colnames(eset) <- file_names
