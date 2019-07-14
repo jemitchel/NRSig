@@ -9,7 +9,7 @@ mapped_probes <- mappedkeys(x)
 glist <- as.list(x[mapped_probes]) # list of probes mapped to genes
 
 # opens the tf-target probe data source
-allTargets <- fromJSON("./data/NR_target_probes.json", flatten = TRUE)
+all_targets <- fromJSON("./data/NR_target_probes.json", flatten = TRUE)
 
 # loads dataframe of serum starved MCF7 samples
 data <- readRDS(file = "./data/serum-starved.rds")
@@ -36,30 +36,30 @@ NRs <- c(
 
 
 # This function converts z scores from probe level -> gene level
-DiffProbes2Genes <- function(probeZ) {
-  zForGenes <- list()
+DiffProbes2Genes <- function(z_probe) {
+  z_genes <- list()
   mappings <- list()
-  for (i in 1:nrow(probeZ)) {
-    ID <- rownames(probeZ)[i]
-    if (ID %in% mapped_probes) { # if the probe maps to a gene symbol, continue
-      sym <- glist[[ID]]
-      score <- probeZ[i, 1]
-      if (sym %in% names(zForGenes)) {
-        zForGenes[[sym]] <- c(zForGenes[[sym]], score)
-        mappings[[sym]] <- c(mappings[[sym]], ID)
+  for (i in 1:nrow(z_probe)) {
+    id <- rownames(z_probe)[i]
+    if (id %in% mapped_probes) { # if the probe maps to a gene symbol, continue
+      sym <- glist[[id]]
+      score <- z_probe[i, 1]
+      if (sym %in% names(z_genes)) {
+        z_genes[[sym]] <- c(z_genes[[sym]], score)
+        mappings[[sym]] <- c(mappings[[sym]], id)
       } else {
-        zForGenes[[sym]] <- c(score)
-        mappings[[sym]] <- c(ID)
+        z_genes[[sym]] <- c(score)
+        mappings[[sym]] <- c(id)
       }
     }
   }
 
   newz <- list()
   newz_mappings <- list()
-  for (i in 1:length(zForGenes)) {
-    ndxMax <- which.max(abs(zForGenes[[i]]))
-    newz[[names(zForGenes)[i]]] <- zForGenes[[i]][ndxMax]
-    newz_mappings[[names(mappings)[i]]] <- mappings[[i]][ndxMax]
+  for (i in 1:length(z_genes)) {
+    ndx_max <- which.max(abs(z_genes[[i]]))
+    newz[[names(z_genes)[i]]] <- z_genes[[i]][ndx_max]
+    newz_mappings[[names(mappings)[i]]] <- mappings[[i]][ndx_max]
   }
 
   return(list(newz, newz_mappings))
@@ -77,7 +77,7 @@ GetNumAboveThreshold <- function(zscores) {
   return(count)
 }
 
-MakeBoxPlots <- function(testData, gene_z, mappings, NR) {
+MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
 
   # preps serum-starved data for plotting
   distrib <- data[unlist(mappings), ]
@@ -90,44 +90,44 @@ MakeBoxPlots <- function(testData, gene_z, mappings, NR) {
 
   # preps user input data and results for plotting
   ordered_z <- as.list(gene_z[order(abs(unlist(gene_z)), decreasing = FALSE)])
-  inData <- testData[unlist(mappings), , drop = FALSE]
-  genelst <- glist[rownames(inData)]
-  inData <- cbind(inData, unlist(genelst))
-  colnames(inData) <- c("expr", "gene")
-  inData <- cbind(inData, unlist(gene_z[as.character(inData$gene)]))
-  colnames(inData)[3] <- "zsc"
-  inData <- inData[match(names(ordered_z), inData$gene), ]
-  inData$gene <- factor(inData$gene, levels = inData$gene) # orders the factor
-  inData$zsc <- round(inData$zsc, digits = 2)
+  in_data <- test_data[unlist(mappings), , drop = FALSE]
+  genelst <- glist[rownames(in_data)]
+  in_data <- cbind(in_data, unlist(genelst))
+  colnames(in_data) <- c("expr", "gene")
+  in_data <- cbind(in_data, unlist(gene_z[as.character(in_data$gene)]))
+  colnames(in_data)[3] <- "zsc"
+  in_data <- in_data[match(names(ordered_z), in_data$gene), ]
+  in_data$gene <- factor(in_data$gene, levels = in_data$gene) # orders the factor
+  in_data$zsc <- round(in_data$zsc, digits = 2)
 
   # makes data to build the legend
-  boxPlotLegend <- data.frame(
+  bplot_legend <- data.frame(
     c(26.5, 27),
     c(
-      as.character(inData[nrow(inData) - 1, 2]),
-      as.character(inData[nrow(inData) - 1, 2])
+      as.character(in_data[nrow(in_data) - 1, 2]),
+      as.character(in_data[nrow(in_data) - 1, 2])
     )
   )
-  colnames(boxPlotLegend) <- c("vals", "loc")
-  inputPlotLegend <- data.frame(
+  colnames(bplot_legend) <- c("vals", "loc")
+  in_plot_legend <- data.frame(
     c(26.5),
-    c(as.character(inData[nrow(inData) - 2, 2]))
+    c(as.character(in_data[nrow(in_data) - 2, 2]))
   )
-  colnames(inputPlotLegend) <- c("vals", "loc")
-  textLegend <- data.frame(
+  colnames(in_plot_legend) <- c("vals", "loc")
+  text_legend <- data.frame(
     c("Serum-Starved", "Input Sample"),
     c(
-      as.character(inData[nrow(inData) - 1, 2]),
-      as.character(inData[nrow(inData) - 2, 2])
+      as.character(in_data[nrow(in_data) - 1, 2]),
+      as.character(in_data[nrow(in_data) - 2, 2])
     )
   )
-  colnames(textLegend) <- c("vals", "loc")
+  colnames(text_legend) <- c("vals", "loc")
 
   # makes the plot
-  p <- ggplot(data = inData, aes(x = as.factor(gene), y = expr)) +
+  p <- ggplot(data = in_data, aes(x = as.factor(gene), y = expr)) +
     geom_point(color = "red", size = 3) +
     geom_text(
-      data = inData, aes(x = as.factor(gene), y = 20, label = zsc),
+      data = in_data, aes(x = as.factor(gene), y = 20, label = zsc),
       vjust = 0
     ) +
     geom_boxplot(
@@ -135,19 +135,19 @@ MakeBoxPlots <- function(testData, gene_z, mappings, NR) {
       width = .3
     ) +
     geom_point(
-      data = inData, aes(x = as.factor(gene), y = expr),
+      data = in_data, aes(x = as.factor(gene), y = expr),
       color = "red", size = 3
     ) +
     coord_flip() +
     geom_line(
-      data = boxPlotLegend, aes(x = as.factor(loc), y = vals),
+      data = bplot_legend, aes(x = as.factor(loc), y = vals),
       color = "black"
     ) +
     geom_point(
-      data = inputPlotLegend, aes(x = as.factor(loc), y = vals),
+      data = in_plot_legend, aes(x = as.factor(loc), y = vals),
       color = "red", size = 3
     ) +
-    geom_text(data = textLegend, aes(
+    geom_text(data = text_legend, aes(
       x = as.factor(loc), y = 24,
       label = vals
     )) +
@@ -178,8 +178,8 @@ UpdateTargets <- function(data) {
   for (i in 1:length(NRs)) {
     NR <- NRs[i]
     rems <- c()
-    if (NR %in% names(allTargets)) { # if it hasnt alreay been removed...
-      tlist <- allTargets[[NR]]
+    if (NR %in% names(all_targets)) { # if it hasnt alreay been removed...
+      tlist <- all_targets[[NR]]
       for (j in 1:length(tlist)) {
         probe <- tlist[j]
         if (!(probe %in% rownames(data))) {
@@ -195,13 +195,13 @@ UpdateTargets <- function(data) {
 
       asGenes <- unique(glist[tlist])
       if (length(asGenes) < 15) {
-        allTargets[[NR]] <- NULL
+        all_targets[[NR]] <- NULL
       } else {
-        allTargets[[NR]] <- tlist
+        all_targets[[NR]] <- tlist
       }
     }
   }
-  return(allTargets)
+  return(all_targets)
 }
 
 
@@ -219,7 +219,7 @@ CalcEnrich <- function(testSamples, crossProbes) {
     data_av_std <- data_av_std[!(rownames(data_av_std) %in% hyb), ]
     av <- data_av_std[, 1]
     std <- data_av_std[, 2]
-    allTargets <- UpdateTargets(data)
+    all_targets <- UpdateTargets(data)
   }
 
   # averages replicates if there are multiple
@@ -229,16 +229,16 @@ CalcEnrich <- function(testSamples, crossProbes) {
   zscores <- (test_sample - av) / std
 
   # creates df to store enrichment p-values
-  finPvals <- data.frame(matrix(ncol = length(NRs), nrow = 1))
-  colnames(finPvals) <- NRs
+  final_p_vals <- data.frame(matrix(ncol = length(NRs), nrow = 1))
+  colnames(final_p_vals) <- NRs
 
   finNR <- list() # holds z-scores for target genes of each NR
 
   for (d in 1:length(NRs)) { # for each nuclear receptor...
 
     # gets a list of target probes for the specified NR
-    if (NRs[d] %in% names(allTargets)) {
-      target_probes <- allTargets[[NRs[d]]]
+    if (NRs[d] %in% names(all_targets)) {
+      target_probes <- all_targets[[NRs[d]]]
     } else {
       next # if NR had less than 15 target genes go to next NR
     }
@@ -283,32 +283,32 @@ CalcEnrich <- function(testSamples, crossProbes) {
     print(NRs[d])
     print(result[["p.value"]])
     finNR[[NRs[d]]] <- list(outPlot, length(nrGeneLevelZ))
-    finPvals[1, NRs[d]] <- result[["p.value"]]
+    final_p_vals[1, NRs[d]] <- result[["p.value"]]
 
     # calculates percentage complete
     num_completed <- num_completed + 1
-    percent <- round(100 * num_completed / length(allTargets))
+    percent <- round(100 * num_completed / length(all_targets))
 
     incProgress(
-      amount = 1 / length(allTargets),
+      amount = 1 / length(all_targets),
       detail = paste(percent, "% complete", "")
     )
   }
 
   # removes NA values
-  finPvals <- finPvals[, !apply(is.na(finPvals), 2, any)]
+  final_p_vals <- final_p_vals[, !apply(is.na(final_p_vals), 2, any)]
 
   # appends adjusted p-values
-  padj <- p.adjust(finPvals[1, ], method = "fdr")
-  finPvals <- rbind(finPvals, padj)
+  padj <- p.adjust(final_p_vals[1, ], method = "fdr")
+  final_p_vals <- rbind(final_p_vals, padj)
 
   # transposes and sorts dataframe
-  finPvals <- t(finPvals)
-  finPvals <- finPvals[order(finPvals[, 2]), ]
-  finNR <- as.list(finNR[order(finPvals[, 2])]) # orders the list of plots
+  final_p_vals <- t(final_p_vals)
+  final_p_vals <- final_p_vals[order(final_p_vals[, 2]), ]
+  finNR <- as.list(finNR[order(final_p_vals[, 2])]) # orders the list of plots
   # makes rownames into first column
-  finPvals <- cbind(Row.Names = rownames(finPvals), finPvals)
-  colnames(finPvals) <- c("NR", "raw p-value", "adj p-value")
+  final_p_vals <- cbind(Row.Names = rownames(final_p_vals), final_p_vals)
+  colnames(final_p_vals) <- c("NR", "raw p-value", "adj p-value")
 
   # adds gene symbol annotations to differentially expressed probes list
   syms <- as.character(glist[rownames(zscores)])
@@ -323,8 +323,5 @@ CalcEnrich <- function(testSamples, crossProbes) {
   testSamples <- cbind(Row.Names = rownames(testSamples), testSamples)
   colnames(testSamples)[1] <- c("Probeset ID")
 
-  print(finPvals)
-
-
-  return(list(finNR, finPvals, zscores, testSamples))
+  return(list(finNR, final_p_vals, zscores, testSamples))
 }

@@ -9,7 +9,7 @@ ui <- dashboardPage(
   dashboardSidebar(
     width = 350,
     fileInput(
-      inputId = "files",
+      inputId = "cel_files",
       label = "Upload .CEL files for one sample or a group of
               replicates",
       multiple = TRUE
@@ -18,16 +18,16 @@ ui <- dashboardPage(
       inputId = "example",
       label = "Use Example Input"
     ),
-    verbatimTextOutput("fileName"),
-    textOutput("addLine1"),
+    verbatimTextOutput("cel_file_name"),
+    textOutput("add_line_1"),
     fileInput(
-      inputId = "crossProbes",
+      inputId = "cross_probes",
       label = "For xenograft samples only: Upload .csv of
               cross-hybridized probes to be removed (single column)",
       multiple = FALSE
     ),
     actionButton(
-      inputId = "exampleCrossProbes",
+      inputId = "example_cross_probes",
       label = "Load probes crosshybridized with athymic nude mice
                 (from Hollingshead et al. study)",
       style = "white-space: normal;
@@ -35,9 +35,9 @@ ui <- dashboardPage(
                  width:250px;
                  font-size: 12px;"
     ),
-    verbatimTextOutput("hybridFileName"),
-    textOutput("addLine2"),
-    verbatimTextOutput("errorBox"),
+    verbatimTextOutput("hybrid_file_name"),
+    textOutput("add_line_2"),
+    verbatimTextOutput("error_box"),
     actionButton(
       inputId = "clear",
       label = "Clear All Input"
@@ -58,12 +58,12 @@ ui <- dashboardPage(
       box(title = "NRSig", width = 12, textOutput("intro")),
       column(
         5,
-        textOutput("tableTitle"),
-        textOutput("placeHolder"),
-        tags$head(tags$style("#tableTitle{color: blue;
+        textOutput("table_title"),
+        textOutput("placeholder"),
+        tags$head(tags$style("#table_title{color: blue;
                                   font-size: 20px;
                                   }")),
-        DT::dataTableOutput("resTable")
+        DT::dataTableOutput("res_table")
       ),
       column(7, div(
         style = "overflow-x: auto; height:850px;",
@@ -80,12 +80,13 @@ server <- function(input, output, session) {
   # increases allowable upload file size to accomodate large .cel files
   options(shiny.maxRequestSize = 35 * 1024^2)
 
-  rv <- reactiveValues() # container for selected files
-  rv2 <- reactiveValues() # container for crosshybrid probes file
+  rv_cel <- reactiveValues() # container for selected files
+  rv_cross <- reactiveValues() # container for crosshybrid probes file
   nclicks <- reactiveVal(0) # reactive number times compute is clicked
   status <- reactiveValues(
     "finished" = "Results will be displayed here",
-    "title" = ""
+    "title" = "",
+    "error_message" = NULL
   )
 
 
@@ -100,73 +101,73 @@ server <- function(input, output, session) {
   })
 
   observe({
-    rv$data <- input$files$datapath
-    rv$name <- input$files$name
-    rv$errorMessage <- NULL
+    rv_cel$data <- input$cel_files$datapath
+    rv_cel$name <- input$cel_files$name
+    status$error_message <- NULL
     nclicks(0)
   })
 
   observe({
-    rv2$data <- input$crossProbes$datapath
-    rv2$name <- input$crossProbes$name
+    rv_cross$data <- input$cross_probes$datapath
+    rv_cross$name <- input$cross_probes$name
   })
 
   observeEvent(input$example, {
-    rv$data <- "precomputed"
-    rv$name <- c("example.CEL")
-    rv$errorMessage <- NULL
+    rv_cel$data <- "precomputed"
+    rv_cel$name <- c("example.CEL")
+    status$error_message <- NULL
     nclicks(0)
   })
 
-  observeEvent(input$exampleCrossProbes, {
-    rv2$data <- c("./data/crosshybrid.csv")
-    rv2$name <- c("./data/crosshybrid.csv")
+  observeEvent(input$example_cross_probes, {
+    rv_cross$data <- c("./data/crosshybrid.csv")
+    rv_cross$name <- c("./data/crosshybrid.csv")
   })
 
   observeEvent(input$clear, {
-    rv$data <- NULL
-    rv$name <- NULL
-    rv2$data <- NULL
-    rv2$name <- NULL
+    rv_cel$data <- NULL
+    rv_cel$name <- NULL
+    rv_cross$data <- NULL
+    rv_cross$name <- NULL
   })
 
-  output$fileName <- renderText({
+  output$cel_file_name <- renderText({
     # tmp <- "No Files Uploaded"
     tmp <- NULL
-    if (!is.null(rv$name)) {
+    if (!is.null(rv_cel$name)) {
       tmp <- "Uploaded Files:\n"
-      for (i in basename(rv$name)) {
+      for (i in basename(rv_cel$name)) {
         tmp <- paste(tmp, i, "\n")
       }
     }
     return(tmp)
   })
 
-  output$errorBox <- renderText({
-    rv$errorMessage
+  output$error_box <- renderText({
+    status$error_message
   })
 
-  output$addLine1 <- renderText({
+  output$add_line_1 <- renderText({
     "--------------------------------------------------------------------------------"
   })
 
-  output$hybridFileName <- renderText({
+  output$hybrid_file_name <- renderText({
     tmp <- NULL
-    if (!is.null(rv2$name)) {
-      tmp <- paste("Uploaded File:\n", basename(rv2$name), "")
+    if (!is.null(rv_cross$name)) {
+      tmp <- paste("Uploaded File:\n", basename(rv_cross$name), "")
     }
     return(tmp)
   })
 
-  output$addLine2 <- renderText({
+  output$add_line_2 <- renderText({
     "--------------------------------------------------------------------------------"
   })
 
-  output$placeHolder <- renderText({
+  output$placeholder <- renderText({
     status$finished
   })
 
-  output$tableTitle <- renderText({
+  output$table_title <- renderText({
     status$title
   })
 
@@ -213,7 +214,7 @@ server <- function(input, output, session) {
 
 
   res <- reactiveVal() # holds all calculation results
-  chosenPlt <- reactiveVal() # holds output z-score figure
+  chosen_plt <- reactiveVal() # holds output z-score figure
 
   observeEvent(input$compute, {
     if (nclicks() != 0) {
@@ -223,21 +224,21 @@ server <- function(input, output, session) {
     # Increment clicks and prevent concurrent analyses
     nclicks(nclicks() + 1)
 
-    if (identical(rv$data, "precomputed")) {
+    if (identical(rv_cel$data, "precomputed")) {
       # uses precomputed results
-      rv$data <- readRDS("./data/exres.rds")
-      res(rv$data)
+      rv_cel$data <- readRDS("./data/exres.rds")
+      res(rv_cel$data)
     } else {
 
       # checks for file errors
-      err1 <- celFileError(rv$data)
-      err2 <- csvFileError(rv2$data)
+      err1 <- celFileError(rv_cel$data)
+      err2 <- csvFileError(rv_cross$data)
 
       if (!is.null(err1)) {
-        rv$errorMessage <- err1
+        status$error_message <- err1
         return(NULL)
       } else if (!is.null(err2)) {
-        rv$errorMessage <- err2
+        status$error_message <- err2
         return(NULL)
       }
 
@@ -248,7 +249,7 @@ server <- function(input, output, session) {
       )
 
       source("preprocess.R")
-      samples_matrix <- pre_proc(rv$data, rv$name, rv2$data)
+      samples_matrix <- pre_proc(rv_cel$data, rv_cel$name, rv_cross$data)
       progress$set(message = "Preprocessing Completed", detail = "")
       on.exit(progress$close())
 
@@ -256,7 +257,7 @@ server <- function(input, output, session) {
         message = "Computing Enrichment of NR-Target Gene Sets...",
         value = 0, {
           source("compute_enriched_NRs.R")
-          results <- CalcEnrich(samples_matrix, rv2$data)
+          results <- CalcEnrich(samples_matrix, rv_cross$data)
           res(results)
         }
       )
@@ -292,7 +293,7 @@ server <- function(input, output, session) {
   })
 
   # renders the results dataframe with column of buttons
-  output$resTable <- DT::renderDataTable({
+  output$res_table <- DT::renderDataTable({
     if (is.null(res())) {
       return(NULL)
     }
@@ -309,9 +310,9 @@ server <- function(input, output, session) {
     if (is.null(res())) {
       return(NULL)
     }
-    selectedRow <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
-    selectedNR <- rownames(tmptbl())[selectedRow]
-    chosenPlt(res()[[1]][[selectedNR]])
+    selected_row <- as.numeric(strsplit(input$select_button, "_")[[1]][2])
+    selected_NR <- rownames(tmptbl())[selected_row]
+    chosen_plt(res()[[1]][[selected_NR]])
   })
 
   # shows the selected table
@@ -319,13 +320,13 @@ server <- function(input, output, session) {
     if (is.null(res())) {
       return(NULL)
     }
-    if (is.null(chosenPlt())) {
-      chosenPlt(res()[[1]][[1]])
+    if (is.null(chosen_plt())) {
+      chosen_plt(res()[[1]][[1]])
     }
 
     output$bplots <- renderPlot({
-      chosenPlt()[[1]]
-    }, height = (3000 / 74) * chosenPlt()[[2]], width = 500)
+      chosen_plt()[[1]]
+    }, height = (3000 / 74) * chosen_plt()[[2]], width = 500)
   })
 
 
@@ -361,8 +362,8 @@ server <- function(input, output, session) {
   })
 
   output$download4 <- renderUI({
-    if (!is.null(chosenPlt())) {
-      downloadButton("downloadPlot",
+    if (!is.null(chosen_plt())) {
+      downloadButton("download_plot",
         label = "Boxplot Figure",
         style = "color: #fff; background-color: #A9A9A9; 
                      border-color: #A9A9A9"
@@ -397,16 +398,16 @@ server <- function(input, output, session) {
     }
   )
 
-  output$downloadPlot <- downloadHandler(
+  output$download_plot <- downloadHandler(
     filename = function() {
-      paste(chosenPlt()[[1]]$labels$title, ".png",
+      paste(chosen_plt()[[1]]$labels$title, ".png",
         sep = ""
       )
     },
     content = function(file) {
       ggsave(file,
-        plot = chosenPlt()[[1]], device = "png",
-        height = (45 / 74) * chosenPlt()[[2]], width = 6.75,
+        plot = chosen_plt()[[1]], device = "png",
+        height = (45 / 74) * chosen_plt()[[2]], width = 6.75,
         limitsize = FALSE
       )
     }
