@@ -8,13 +8,14 @@ x <- hgu133plus2SYMBOL
 mapped_probes <- mappedkeys(x)
 glist <- as.list(x[mapped_probes]) # list of probes mapped to genes
 
-# opens the tf-target probe data source
+# Opens the NR -> target probe data source
+# Already removed NRs with < 15 target genes
 all_targets <- fromJSON("./data/NR_target_probes.json", flatten = TRUE)
 
-# loads dataframe of serum starved MCF7 samples
+# Loads dataframe of serum starved MCF7 samples
 data <- readRDS(file = "./data/serum-starved.rds")
 
-# computes mean and standard deviation for serum starved data
+# Computes mean and standard deviation for serum starved data
 data_av_std <- data.frame(
   Mean = rowMeans(data, na.rm = TRUE),
   Std = apply(data, 1, sd, na.rm = TRUE)
@@ -22,7 +23,7 @@ data_av_std <- data.frame(
 av <- data_av_std[, 1]
 std <- data_av_std[, 2]
 
-# all 48 NRs (some not tested since have < 15 target genes in TTRUST)
+# All 48 NRs (some not tested since have < 15 target genes in TTRUST)
 NRs <- c(
   "ESR1", "AR", "NR3C1", "NR3C2", "PGR",
   "NR4A1", "NR4A2", "NR4A3", "NR5A1", "NR5A2", "NR6A1",
@@ -105,7 +106,7 @@ GetNumAboveThreshold <- function(zscores) {
 #' 
 MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
 
-  # preps serum-starved data for plotting
+  # Preps serum-starved data for plotting
   distrib <- data[unlist(mappings), ]
   genelst <- rep(glist[rownames(distrib)], each = ncol(distrib))
   distrib <- c(t(distrib)) # linearizes data
@@ -114,7 +115,7 @@ MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
   colnames(distrib) <- c("expr", "gene")
   distrib <- as.data.frame(lapply(distrib, unlist))
 
-  # preps user input data and results for plotting
+  # Preps user input data and results for plotting
   ordered_z <- as.list(gene_z[order(abs(unlist(gene_z)), decreasing = FALSE)])
   in_data <- test_data[unlist(mappings), , drop = FALSE]
   genelst <- glist[rownames(in_data)]
@@ -126,7 +127,7 @@ MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
   in_data$gene <- factor(in_data$gene, levels = in_data$gene) # orders the factor
   in_data$zsc <- round(in_data$zsc, digits = 2)
 
-  # makes data to build the legend
+  # Makes data to build the legend
   bplot_legend <- data.frame(
     c(26.5, 27),
     c(
@@ -149,7 +150,7 @@ MakeBoxPlots <- function(test_data, gene_z, mappings, NR) {
   )
   colnames(text_legend) <- c("vals", "loc")
 
-  # makes the plot
+  # Makes the plot
   p <- ggplot(data = in_data, aes(x = as.factor(gene), y = expr)) +
     geom_point(color = "red", size = 3) +
     geom_text(
@@ -213,7 +214,7 @@ UpdateTargets <- function(data) {
   for (i in 1:length(NRs)) {
     NR <- NRs[i]
     rems <- c()
-    if (NR %in% names(all_targets)) { # if it hasnt alreay been removed...
+    if (NR %in% names(all_targets)) { 
       tlist <- all_targets[[NR]]
       for (j in 1:length(tlist)) {
         probe <- tlist[j]
@@ -256,10 +257,10 @@ UpdateTargets <- function(data) {
 #' 
 CalcEnrich <- function(test_samples, cross_probes) {
 
-  # keeps track of progress
+  # Keeps track of progress
   num_completed <- 0
 
-  # removes probes from ss data and target source if use xenograft data
+  # Removes probes from ss data and target source if using xenograft data
   if (!is.null(cross_probes)) {
     hyb <- read.csv(cross_probes, stringsAsFactors = FALSE, header = FALSE)
     hyb <- as.list(hyb[, 1])
@@ -270,36 +271,36 @@ CalcEnrich <- function(test_samples, cross_probes) {
     all_targets <- UpdateTargets(data)
   }
 
-  # averages replicates if there are multiple
+  # Averages replicates if there are multiple
   test_sample <- data.frame(Mean = rowMeans(test_samples, na.rm = TRUE))
 
-  # compute zscores for all probes against the ss prior distributions
+  # Compute zscores for all probes against the ss prior distributions
   zscores <- (test_sample - av) / std
 
-  # creates df to store enrichment p-values
+  # Creates df to store enrichment p-values
   final_p_vals <- data.frame(matrix(ncol = length(NRs), nrow = 1))
   colnames(final_p_vals) <- NRs
 
-  NR_plots <- list() # holds z-scores for target genes of each NR
+  NR_plots <- list() # Holds z-scores for target genes of each NR
 
-  for (d in 1:length(NRs)) { # for each nuclear receptor...
+  for (d in 1:length(NRs)) { 
 
-    # gets a list of target probes for the specified NR
+    # Gets a list of target probes for the specified NR
     if (NRs[d] %in% names(all_targets)) {
       target_probes <- all_targets[[NRs[d]]]
     } else {
-      next # if NR had less than 15 target genes go to next NR
+      next # If NR had less than 15 target genes go to next NR
     }
 
-    # select just the probes that are targets of the current NR being evaluated
+    # Select just the probes that are targets of the current NR being evaluated
     targ_z_probe <- zscores[target_probes, , drop = FALSE]
 
-    # select all other probes that are not listed as targets of the NR
+    # Select all other probes that are not listed as targets of the NR
     rest_z_probe <- zscores[!row.names(zscores) %in% target_probes, ,
       drop = FALSE
     ]
 
-    # gets differentially expressed genes from probe z scores
+    # Gets differentially expressed genes from probe z scores
     targ_z_gene <- DiffProbes2Genes(targ_z_probe)
     targ_z_gene_mappings <- targ_z_gene[[2]]
     targ_z_gene <- targ_z_gene[[1]]
@@ -308,17 +309,17 @@ CalcEnrich <- function(test_samples, cross_probes) {
     rest_z_gene_mappings <- rest_z_gene[[2]]
     rest_z_gene <- rest_z_gene[[1]]
 
-    # generate boxplots of the data
+    # Generate boxplots of the data
     out_plot <- MakeBoxPlots(
       test_sample, targ_z_gene, targ_z_gene_mappings,
       NRs[d]
     )
 
-    # figure out how many target and non-targets are dysregulated
+    # Figure out how many target and non-targets are dysregulated
     targ_above_thresh <- GetNumAboveThreshold(targ_z_gene)
     rest_above_thresh <- GetNumAboveThreshold(rest_z_gene)
 
-    # design contingency table
+    # Design contingency table
     above_thresh <- c(targ_above_thresh, rest_above_thresh)
     below_thresh <- c(
       length(targ_z_gene) - targ_above_thresh,
@@ -326,14 +327,14 @@ CalcEnrich <- function(test_samples, cross_probes) {
     )
     c_table <- cbind(above_thresh, below_thresh)
 
-    # computes results
+    # Computes results
     result <- fisher.test(c_table, alternative = "greater")
     print(NRs[d])
     print(result[["p.value"]])
     NR_plots[[NRs[d]]] <- list(out_plot, length(targ_z_gene))
     final_p_vals[1, NRs[d]] <- result[["p.value"]]
 
-    # calculates percentage complete
+    # Calculates percentage complete
     num_completed <- num_completed + 1
     percent <- round(100 * num_completed / length(all_targets))
 
@@ -342,30 +343,32 @@ CalcEnrich <- function(test_samples, cross_probes) {
       detail = paste(percent, "% complete", "")
     )
   }
-
-  # removes NA values
+  
+  # Postprocessing below
+  
+  # Removes NA values
   final_p_vals <- final_p_vals[, !apply(is.na(final_p_vals), 2, any)]
 
-  # appends adjusted p-values
+  # Appends adjusted p-values
   padj <- p.adjust(final_p_vals[1, ], method = "fdr")
   final_p_vals <- rbind(final_p_vals, padj)
 
-  # transposes and sorts dataframe
+  # Transposes and sorts dataframe
   final_p_vals <- t(final_p_vals)
   final_p_vals <- final_p_vals[order(final_p_vals[, 2]), ]
   NR_plots <- as.list(NR_plots[order(final_p_vals[, 2])]) # orders the list of plots
-  # makes rownames into first column
+  # Makes rownames into first column
   final_p_vals <- cbind(Row.Names = rownames(final_p_vals), final_p_vals)
   colnames(final_p_vals) <- c("NR", "raw p-value", "adj p-value")
 
-  # adds gene symbol annotations to differentially expressed probes list
+  # Adds gene symbol annotations to differentially expressed probes list
   syms <- as.character(glist[rownames(zscores)])
   syms <- replace(syms, syms == "NULL", "")
   zscores <- cbind(zscores, syms)
-  # sorts differentially expressed probes list
+  # Sorts differentially expressed probes list
   zscores <- zscores[order(abs(unlist(zscores[, 1])), decreasing = TRUE), ]
 
-  # makes probe ID first column and names columns for both downloadable tables
+  # Makes probe ID first column and names columns for both downloadable tables
   zscores <- cbind(Row.Names = rownames(zscores), zscores)
   colnames(zscores) <- c("Probeset ID", "Z-Score", "Gene Symbol")
   test_samples <- cbind(Row.Names = rownames(test_samples), test_samples)

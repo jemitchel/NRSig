@@ -183,7 +183,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
 
-    # Increment clicks and prevent concurrent analyses
+    # Increment clicks to prevent queuing analyses with multiple clicks
     nclicks(nclicks() + 1)
 
     if (identical(rv_cel$data, "precomputed")) {
@@ -191,7 +191,6 @@ server <- function(input, output, session) {
       rv_cel$data <- readRDS("./data/exres.rds")
       res(rv_cel$data)
     } else {
-
       # Checks for file errors
       err1 <- celFileError(rv_cel$data)
       err2 <- csvFileError(rv_cross$data)
